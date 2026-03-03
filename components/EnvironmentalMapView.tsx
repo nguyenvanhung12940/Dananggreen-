@@ -152,9 +152,14 @@ interface EnvironmentalMapViewProps {
   onNavigateHome: () => void;
   onSelectReport: (report: EnvironmentalReport) => void;
   onStartReport: () => void;
+  selectedReport?: EnvironmentalReport | null;
+  initialViewState?: {
+    center: [number, number];
+    zoom: number;
+  };
 }
 
-const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, pois, userLocation, onNavigateHome, onSelectReport, onStartReport }) => {
+const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, pois, userLocation, onNavigateHome, onSelectReport, onStartReport, selectedReport, initialViewState }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const reportsLayerRef = useRef<L.LayerGroup | null>(null);
@@ -180,8 +185,8 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
   useEffect(() => {
     if (mapContainerRef.current && !mapRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [15.85, 108.3], // Trung tâm Đà Nẵng - Quảng Nam
-        zoom: 10,
+        center: initialViewState?.center || [15.85, 108.3], // Trung tâm Đà Nẵng - Quảng Nam
+        zoom: initialViewState?.zoom || 10,
         zoomControl: false,
       });
       mapRef.current = map;
@@ -346,6 +351,16 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
   useEffect(() => {
     if (!mapRef.current) return;
 
+    // Nếu một báo cáo cụ thể được chọn, hãy bay đến đó.
+    if (selectedReport) {
+        mapRef.current.flyTo(
+            [selectedReport.latitude, selectedReport.longitude],
+            16,
+            { animate: true, duration: 1.5 }
+        );
+        return;
+    }
+
     const timer = setTimeout(() => {
         if (!mapRef.current) return;
         
@@ -364,7 +379,7 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
 
     return () => clearTimeout(timer);
 
-  }, [filteredReports, pois]);
+  }, [filteredReports, pois, selectedReport]);
 
 
   return (

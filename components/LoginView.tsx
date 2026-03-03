@@ -128,6 +128,31 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError('');
     setSuccess('');
 
+    // Hardcoded credentials for Demo/Officials
+    const validUsers = [
+      { username: 'admin@dananggreen.vn', password: '123456', role: 'environment_department', organizationName: 'Hệ thống Đà Nẵng Green', area: 'All' },
+      { username: 'quanly@dananggreen.vn', password: '123456', role: 'department_manager', organizationName: 'Ban Quản lý Môi trường', area: 'Hải Châu' },
+      { username: 'nguoidan1@gmail.com', password: '123456', role: 'citizen', organizationName: 'Người dân', area: 'Hải Châu' },
+      { username: 'nguoidan2@gmail.com', password: '123456', role: 'citizen', organizationName: 'Người dân', area: 'Thanh Khê' },
+    ];
+
+    const matchedUser = validUsers.find(u => u.username === username && u.password === password);
+
+    if (!isRegistering && matchedUser) {
+      // Simulate network delay
+      setTimeout(() => {
+        const userData = {
+          ...matchedUser,
+          token: 'demo-token-' + Date.now()
+        };
+        localStorage.setItem('token', userData.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        onLogin(userData);
+        setIsLoading(false);
+      }, 800);
+      return;
+    }
+
     const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
     const body = isRegistering 
       ? { username, password, role, area, organizationName }
@@ -206,13 +231,13 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Tên đăng nhập</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email đăng nhập</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
-                placeholder="admin"
+                placeholder="admin@dananggreen.vn"
                 required
               />
             </div>
@@ -298,6 +323,30 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             >
               {isLoading ? 'Đang xử lý...' : (isRegistering ? 'Đăng ký tài khoản' : 'Đăng nhập Hệ thống')}
             </button>
+
+            {!isRegistering && (
+              <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tài khoản demo cán bộ</p>
+                <div className="grid grid-cols-1 gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => { setUsername('admin@dananggreen.vn'); setPassword('123456'); }}
+                    className="text-left px-3 py-2 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 group"
+                  >
+                    <div className="text-[11px] font-bold text-slate-700 group-hover:text-teal-600">Admin: admin@dananggreen.vn</div>
+                    <div className="text-[10px] text-slate-400">Mật khẩu: 123456</div>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => { setUsername('quanly@dananggreen.vn'); setPassword('123456'); }}
+                    className="text-left px-3 py-2 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 group"
+                  >
+                    <div className="text-[11px] font-bold text-slate-700 group-hover:text-teal-600">Quản lý: quanly@dananggreen.vn</div>
+                    <div className="text-[10px] text-slate-400">Mật khẩu: 123456</div>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {!isRegistering && (
               <button

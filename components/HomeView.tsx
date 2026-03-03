@@ -165,8 +165,6 @@ const HomeView: React.FC<HomeViewProps> = ({ reports, onNavigateToMap, onStartNe
                 </button>
                </div>
             </section>
-
-             {/* Thống kê */}
             <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
                  <span className="w-1.5 h-6 bg-teal-500 rounded-full mr-3"></span>

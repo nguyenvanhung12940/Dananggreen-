@@ -604,6 +604,8 @@ const App: React.FC = () => {
                   onNavigateHome={() => setView('home')}
                   onSelectReport={handleSelectReport}
                   onStartReport={() => handleStartNewReport('environmentalMap')}
+                  selectedReport={selectedReport}
+                  initialViewState={mapViewState}
                 />;
       case 'sos':
         return <SOSView onClose={() => setView('home')} />;
