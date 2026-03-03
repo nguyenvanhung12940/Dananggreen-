@@ -9,6 +9,7 @@ import { TrashIcon } from './icons/TrashIcon';
 import { LandslideIcon } from './icons/LandslideIcon';
 import { FloodIcon } from './icons/FloodIcon';
 import { LifebuoyIcon } from './icons/LifebuoyIcon';
+import { LocationIcon } from './icons/LocationIcon';
 
 // Định nghĩa màu sắc cho các trạng thái báo cáo
 const statusColors: Record<ReportStatus, string> = {
@@ -23,12 +24,18 @@ const poiDetails: Record<POIType, { name: string; color: string }> = {
   RecyclingCenter: { name: 'Điểm tái chế', color: '#2563eb' }, // blue-600
   CommunityCleanup: { name: 'Điểm dọn dẹp', color: '#ea580c' }, // orange-600
   WaterStation: { name: 'Trạm nước', color: '#0891b2' }, // cyan-600
+  RiskPoint: { name: 'Điểm rủi ro', color: '#dc2626' }, // red-600
 };
 
 // Các danh mục bộ lọc
 // FIX: Changed JSX.Element to React.ReactElement to resolve "Cannot find namespace 'JSX'" error.
-const filterCategories: { name: string; icon: React.ReactElement; filterType: AIAnalysis['issueType'] | 'Tất cả' | 'Nhu yếu phẩm' }[] = [
+const filterCategories: { name: string; icon: React.ReactElement; filterType: AIAnalysis['issueType'] | 'Tất cả' | 'Nhu yếu phẩm' | 'Rủi ro' }[] = [
     { name: 'Tất cả', icon: <AllIssuesIcon className="w-5 h-5" />, filterType: 'Tất cả' },
+    { name: 'Rủi ro', icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-red-600">
+            <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.752a3 3 0 01-2.598 4.5H4.644a3 3 0 01-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+        </svg>
+    ), filterType: 'Rủi ro' },
     { name: 'Mới/Chờ', icon: <MapPinIcon className="w-5 h-5" />, filterType: 'Đang chờ phân tích' },
     { name: 'Cứu trợ', icon: <LifebuoyIcon className="w-5 h-5" />, filterType: 'Nhu yếu phẩm' },
     { name: 'Rác thải', icon: <TrashIcon className="w-5 h-5" />, filterType: 'Xả rác không đúng nơi quy định' },
@@ -84,6 +91,13 @@ const getWaterIconSVG = (color: string) => `
 `;
 
 
+// Hàm tạo SVG cho biểu tượng Điểm rủi ro (Cảnh báo)
+const getRiskIconSVG = (color: string) => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="36px" height="36px" style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); background: white; border-radius: 50%; border: 2px solid ${color}; padding: 4px;">
+    <path d="M12 2L1 21h22L12 2zm0 3.45L19.53 19H4.47L12 5.45zM11 16h2v2h-2v-2zm0-6h2v4h-2v-4z" />
+  </svg>
+`;
+
 // Hàm tạo biểu tượng Leaflet tùy chỉnh
 const createCustomIcon = (type: 'pin' | 'lifebuoy' | POIType, color?: string) => {
   if (type === 'lifebuoy') {
@@ -135,6 +149,16 @@ const createCustomIcon = (type: 'pin' | 'lifebuoy' | POIType, color?: string) =>
           popupAnchor: [0, -20],
       });
   }
+
+  if (type === 'RiskPoint') {
+      return L.divIcon({
+          html: getRiskIconSVG(color || '#dc2626'),
+          className: 'animate-pulse',
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+          popupAnchor: [0, -20],
+      });
+  }
   
   return L.divIcon({
     html: getPinIconSVG(color || '#6b7280'),
@@ -168,17 +192,58 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
   const sovereigntyLayerRef = useRef<L.LayerGroup | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<string>('Tất cả');
+  const [selectedArea, setSelectedArea] = useState<string>('Tất cả khu vực');
+  const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
+
+  const availableAreas = useMemo(() => {
+    const areas = reports
+      .map(r => r.area)
+      .filter((area): area is string => !!area);
+    return ['Tất cả khu vực', ...Array.from(new Set(areas)).sort()];
+  }, [reports]);
 
   const filteredReports = useMemo(() => {
+    let result = reports;
+
+    // Lọc theo khu vực trước
+    if (selectedArea !== 'Tất cả khu vực') {
+      result = result.filter(r => r.area === selectedArea);
+    }
+
     if (activeFilter === 'Tất cả') {
-        return reports;
+        return result;
     }
     if (activeFilter === 'Nhu yếu phẩm') {
         // Lọc các báo cáo có danh sách nhu yếu phẩm (ưu tiên)
-        return reports.filter(r => r.aiAnalysis.recommendedSupplies && r.aiAnalysis.recommendedSupplies.length > 0);
+        return result.filter(r => r.aiAnalysis.recommendedSupplies && r.aiAnalysis.recommendedSupplies.length > 0);
     }
-    return reports.filter(r => r.aiAnalysis.issueType === activeFilter);
-  }, [reports, activeFilter]);
+    if (activeFilter === 'Rủi ro') {
+        return []; // Risk filter mainly for POIs
+    }
+    return result.filter(r => r.aiAnalysis.issueType === activeFilter);
+  }, [reports, activeFilter, selectedArea]);
+
+  const filteredPOIs = useMemo(() => {
+    // Nếu đang lọc theo khu vực cụ thể, ẩn các POI vì chúng chưa có dữ liệu khu vực
+    if (selectedArea !== 'Tất cả khu vực') {
+        return [];
+    }
+
+    if (activeFilter === 'Tất cả') {
+        return pois;
+    }
+    if (activeFilter === 'Rủi ro') {
+        return pois.filter(p => p.type === 'RiskPoint');
+    }
+    if (activeFilter === 'Sạt lở') {
+        return pois.filter(p => p.type === 'RiskPoint' && p.name.toLowerCase().includes('sạt lở'));
+    }
+    if (activeFilter === 'Ngập lụt') {
+        return pois.filter(p => p.type === 'RiskPoint' && p.name.toLowerCase().includes('ngập lụt'));
+    }
+    // Các bộ lọc khác ẩn POI để tập trung vào báo cáo
+    return [];
+  }, [pois, activeFilter, selectedArea]);
 
 
   // Khởi tạo bản đồ
@@ -335,17 +400,17 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
   useEffect(() => {
     if (!poisLayerRef.current) return;
     poisLayerRef.current.clearLayers();
-
-    pois.forEach(poi => {
+ 
+    filteredPOIs.forEach(poi => {
       const poiInfo = poiDetails[poi.type];
       // Use the specific POI type for the icon
       const icon = createCustomIcon(poi.type, poiInfo.color);
       const marker = L.marker([poi.latitude, poi.longitude], { icon });
-
+ 
       marker.bindPopup(`<b>${poi.name}</b><br><p style="margin: 4px 0;">${poi.description}</p>`);
       poisLayerRef.current?.addLayer(marker);
     });
-  }, [pois]);
+  }, [filteredPOIs]);
 
   // Điều chỉnh view để vừa tất cả các điểm khi bộ lọc thay đổi
   useEffect(() => {
@@ -366,7 +431,7 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
         
         const allPoints: L.LatLngExpression[] = [
             ...filteredReports.map(r => [r.latitude, r.longitude] as L.LatLngExpression),
-            ...pois.map(p => [p.latitude, p.longitude] as L.LatLngExpression)
+            ...filteredPOIs.map(p => [p.latitude, p.longitude] as L.LatLngExpression)
         ];
 
         if (allPoints.length > 0) {
@@ -410,7 +475,39 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
        {/* Top Center - Title Badge */}
        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-auto">
         <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-gray-100 flex flex-col items-center">
-          <h3 className="text-sm font-bold text-indigo-700 whitespace-nowrap">Bản đồ Môi trường</h3>
+          <h3 className="text-sm font-bold text-red-700 whitespace-nowrap uppercase tracking-wider">Bản đồ Rủi ro Môi trường</h3>
+        </div>
+        
+        {/* Area Filter Dropdown */}
+        <div className="mt-2 relative">
+          <button 
+            onClick={() => setIsAreaDropdownOpen(!isAreaDropdownOpen)}
+            className="bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-md border border-gray-100 flex items-center space-x-2 hover:bg-white transition-all text-xs font-semibold text-gray-700"
+          >
+            <LocationIcon className="w-3.5 h-3.5 text-teal-600" />
+            <span className="text-gray-400 font-normal">Khu vực:</span>
+            <span>{selectedArea}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 transition-transform ${isAreaDropdownOpen ? 'rotate-180' : ''}`}>
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </button>
+          
+          {isAreaDropdownOpen && (
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20 py-1 max-h-60 overflow-y-auto">
+              {availableAreas.map(area => (
+                <button
+                  key={area}
+                  onClick={() => {
+                    setSelectedArea(area);
+                    setIsAreaDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-xs transition-colors ${selectedArea === area ? 'bg-teal-50 text-teal-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  {area}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -446,6 +543,12 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
              </div>
           </div>
           <div className="grid grid-cols-1 gap-1">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 rounded-full bg-red-600 animate-pulse border border-white shadow-sm flex items-center justify-center">
+                   <div className="w-1 h-1 bg-white rounded-full"></div>
+                </div>
+                <span className="text-xs text-gray-600">Điểm rủi ro cao</span>
+              </div>
               {Object.entries(statusColors).map(([status, color]) => (
                  <div key={status} className="flex items-center space-x-2">
                    <MapPinIcon className="w-4 h-4 flex-shrink-0" style={{color: color}} />

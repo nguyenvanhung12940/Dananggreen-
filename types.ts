@@ -63,7 +63,7 @@ export interface EducationalTopic {
   };
 }
 
-export type POIType = 'NatureReserve' | 'RecyclingCenter' | 'CommunityCleanup' | 'WaterStation';
+export type POIType = 'NatureReserve' | 'RecyclingCenter' | 'CommunityCleanup' | 'WaterStation' | 'RiskPoint';
 
 export interface EnvironmentalPOI {
   id: string;

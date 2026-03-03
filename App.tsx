@@ -23,7 +23,65 @@ import { SOSIcon } from './components/icons/SOSIcon';
 import { CloudIcon } from './components/icons/CloudIcon';
 
 // Dữ liệu mẫu tĩnh (Static Data) - Chỉ dùng để hiển thị khi người dùng chưa nhập gì
-const initialReports: EnvironmentalReport[] = []; // Clear static data, fetch from API
+const initialReports: EnvironmentalReport[] = [
+  {
+    id: 'rep-static-1',
+    mediaUrl: 'https://picsum.photos/seed/trash1/800/600',
+    mediaType: 'image',
+    latitude: 16.047,
+    longitude: 108.220,
+    userDescription: 'Rác thải nhựa tràn lan tại vỉa hè đường Bạch Đằng.',
+    description: 'Phát hiện rác thải nhựa tập trung nhiều tại khu vực công cộng.',
+    status: 'Báo cáo mới',
+    timestamp: new Date(),
+    area: 'Hải Châu',
+    aiAnalysis: {
+      issueType: 'Xả rác không đúng nơi quy định',
+      description: 'Rác thải nhựa tập trung nhiều tại khu vực công cộng.',
+      priority: 'Trung bình',
+      solution: 'Cần đội vệ sinh môi trường thu gom trong ngày.',
+      isIssuePresent: true
+    }
+  },
+  {
+    id: 'rep-static-2',
+    mediaUrl: 'https://picsum.photos/seed/flood1/800/600',
+    mediaType: 'image',
+    latitude: 15.986,
+    longitude: 108.067,
+    userDescription: 'Nước dâng cao gây ngập úng cục bộ tại các tuyến đường liên thôn.',
+    description: 'Tình trạng ngập lụt do mưa lớn kéo dài.',
+    status: 'Đang xử lý',
+    timestamp: new Date(),
+    area: 'Hòa Vang',
+    aiAnalysis: {
+      issueType: 'Ngập lụt',
+      description: 'Tình trạng ngập lụt do mưa lớn kéo dài.',
+      priority: 'Cao',
+      solution: 'Cảnh báo người dân và chuẩn bị phương án di dời nếu cần.',
+      isIssuePresent: true
+    }
+  },
+  {
+    id: 'rep-static-3',
+    mediaUrl: 'https://picsum.photos/seed/landslide1/800/600',
+    mediaType: 'image',
+    latitude: 15.567,
+    longitude: 108.483,
+    userDescription: 'Sạt lở đất tại khu vực đồi núi gần khu dân cư.',
+    description: 'Sạt lở đất đá sau bão, gây nguy hiểm cho giao thông.',
+    status: 'Đã xử lý',
+    timestamp: new Date(),
+    area: 'Tam Kỳ',
+    aiAnalysis: {
+      issueType: 'Sạt lở đất',
+      description: 'Sạt lở đất đá sau bão, gây nguy hiểm cho giao thông.',
+      priority: 'Cao',
+      solution: 'Đã dọn dẹp hiện trường và gia cố taluy.',
+      isIssuePresent: true
+    }
+  }
+];
 
 // Dữ liệu các điểm môi trường quan trọng (POIs)
 const environmentalPOIs: EnvironmentalPOI[] = [
@@ -59,10 +117,34 @@ const environmentalPOIs: EnvironmentalPOI[] = [
     latitude: 16.0615,
     longitude: 108.2275,
   },
+  {
+    id: 'poi-5',
+    type: 'RiskPoint',
+    name: 'Điểm nguy cơ ngập lụt - Hòa Vang',
+    description: 'Khu vực thấp trũng, thường xuyên xảy ra ngập lụt khi có mưa lớn kéo dài. Cần theo dõi sát sao mực nước.',
+    latitude: 15.985,
+    longitude: 108.152,
+  },
+  {
+    id: 'poi-6',
+    type: 'RiskPoint',
+    name: 'Điểm nguy cơ sạt lở - Bán đảo Sơn Trà',
+    description: 'Đoạn đường có độ dốc lớn, kết cấu địa chất yếu, dễ xảy ra sạt lở đất đá trong mùa mưa bão.',
+    latitude: 16.125,
+    longitude: 108.275,
+  },
+  {
+    id: 'poi-7',
+    type: 'RiskPoint',
+    name: 'Khu vực ô nhiễm không khí cao - KCN Hòa Khánh',
+    description: 'Nơi tập trung nhiều nhà máy sản xuất, chỉ số AQI thường xuyên ở mức cảnh báo. Khuyến nghị đeo khẩu trang khi di chuyển qua đây.',
+    latitude: 16.068,
+    longitude: 108.145,
+  },
 ];
 
 const App: React.FC = () => {
-  const [reports, setReports] = useState<EnvironmentalReport[]>([]);
+  const [reports, setReports] = useState<EnvironmentalReport[]>(initialReports);
   const [view, setView] = useState<'home' | 'map' | 'form' | 'thankYou' | 'environmentalMap' | 'sos' | 'login' | 'dashboard'>('home');
   const [previousView, setPreviousView] = useState<'home' | 'map' | 'environmentalMap'>('home');
   const [selectedReport, setSelectedReport] = useState<EnvironmentalReport | null>(null);
@@ -228,28 +310,37 @@ const App: React.FC = () => {
       addToast('Đã bật Chế độ Giám sát Tự động. Hệ thống sẽ cập nhật dữ liệu mỗi 10 giây.', 'success');
       
       const generateMockReport = () => {
-        const quangNamDistricts = [
-          { name: 'Tam Kỳ', lat: 15.567, lng: 108.483 },
-          { name: 'Hội An', lat: 15.883, lng: 108.333 },
-          { name: 'Điện Bàn', lat: 15.883, lng: 108.233 },
-          { name: 'Bắc Trà My', lat: 15.283, lng: 108.217 },
-          { name: 'Duy Xuyên', lat: 15.817, lng: 108.250 },
-          { name: 'Đại Lộc', lat: 15.883, lng: 107.983 },
-          { name: 'Đông Giang', lat: 15.950, lng: 107.750 },
-          { name: 'Hiệp Đức', lat: 15.550, lng: 108.083 },
-          { name: 'Nam Giang', lat: 15.617, lng: 107.517 },
-          { name: 'Nam Trà My', lat: 15.017, lng: 108.083 },
-          { name: 'Nông Sơn', lat: 15.650, lng: 107.967 },
-          { name: 'Núi Thành', lat: 15.417, lng: 108.617 },
-          { name: 'Phú Ninh', lat: 15.517, lng: 108.417 },
-          { name: 'Phước Sơn', lat: 15.350, lng: 107.783 },
-          { name: 'Quế Sơn', lat: 15.633, lng: 108.150 },
-          { name: 'Tây Giang', lat: 15.917, lng: 107.450 },
-          { name: 'Thăng Bình', lat: 15.717, lng: 108.367 },
-          { name: 'Tiên Phước', lat: 15.483, lng: 108.267 }
+        const districts = [
+          // Đà Nẵng
+          { name: 'Hải Châu', lat: 16.047, lng: 108.220, province: 'Đà Nẵng' },
+          { name: 'Thanh Khê', lat: 16.061, lng: 108.180, province: 'Đà Nẵng' },
+          { name: 'Sơn Trà', lat: 16.091, lng: 108.261, province: 'Đà Nẵng' },
+          { name: 'Ngũ Hành Sơn', lat: 16.002, lng: 108.249, province: 'Đà Nẵng' },
+          { name: 'Liên Chiểu', lat: 16.059, lng: 108.138, province: 'Đà Nẵng' },
+          { name: 'Cẩm Lệ', lat: 15.998, lng: 108.191, province: 'Đà Nẵng' },
+          { name: 'Hòa Vang', lat: 15.986, lng: 108.067, province: 'Đà Nẵng' },
+          // Quảng Nam
+          { name: 'Tam Kỳ', lat: 15.567, lng: 108.483, province: 'Quảng Nam' },
+          { name: 'Hội An', lat: 15.883, lng: 108.333, province: 'Quảng Nam' },
+          { name: 'Điện Bàn', lat: 15.883, lng: 108.233, province: 'Quảng Nam' },
+          { name: 'Bắc Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
+          { name: 'Duy Xuyên', lat: 15.817, lng: 108.250, province: 'Quảng Nam' },
+          { name: 'Đại Lộc', lat: 15.883, lng: 107.983, province: 'Quảng Nam' },
+          { name: 'Đông Giang', lat: 15.950, lng: 107.750, province: 'Quảng Nam' },
+          { name: 'Hiệp Đức', lat: 15.550, lng: 108.083, province: 'Quảng Nam' },
+          { name: 'Nam Giang', lat: 15.617, lng: 107.517, province: 'Quảng Nam' },
+          { name: 'Nam Trà My', lat: 15.017, lng: 108.083, province: 'Quảng Nam' },
+          { name: 'Nông Sơn', lat: 15.650, lng: 107.967, province: 'Quảng Nam' },
+          { name: 'Núi Thành', lat: 15.417, lng: 108.617, province: 'Quảng Nam' },
+          { name: 'Phú Ninh', lat: 15.517, lng: 108.417, province: 'Quảng Nam' },
+          { name: 'Phước Sơn', lat: 15.350, lng: 107.783, province: 'Quảng Nam' },
+          { name: 'Quế Sơn', lat: 15.633, lng: 108.150, province: 'Quảng Nam' },
+          { name: 'Tây Giang', lat: 15.917, lng: 107.450, province: 'Quảng Nam' },
+          { name: 'Thăng Bình', lat: 15.717, lng: 108.367, province: 'Quảng Nam' },
+          { name: 'Tiên Phước', lat: 15.483, lng: 108.267, province: 'Quảng Nam' }
         ];
 
-        const district = quangNamDistricts[Math.floor(Math.random() * quangNamDistricts.length)];
+        const district = districts[Math.floor(Math.random() * districts.length)];
         // Thêm độ lệch ngẫu nhiên nhỏ cho tọa độ
         const lat = district.lat + (Math.random() - 0.5) * 0.04;
         const lng = district.lng + (Math.random() - 0.5) * 0.04;
@@ -295,14 +386,14 @@ const App: React.FC = () => {
           mediaType: 'image',
           latitude: lat,
           longitude: lng,
-          userDescription: `Người dân tại khu vực đó (${lat.toFixed(4)}, ${lng.toFixed(4)}): Phát hiện ${issueType.toLowerCase()} tại huyện ${district.name}. ${snippet}`,
-          description: `Người dân tại khu vực đó (${lat.toFixed(4)}, ${lng.toFixed(4)}): ${issueType}. ${snippet}`,
+          userDescription: `Phát hiện ${issueType.toLowerCase()} tại ${district.name}. ${snippet}`,
+          description: `Phát hiện ${issueType.toLowerCase()} tại ${district.name}. ${snippet}`,
           status: 'Báo cáo mới',
           timestamp: new Date(),
-          area: `Huyện ${district.name}, Quảng Nam`,
+          area: district.name,
           aiAnalysis: {
             issueType: issueType,
-            description: `Người dân tại khu vực đó (${lat.toFixed(4)}, ${lng.toFixed(4)}): ${issueType}. ${snippet}`,
+            description: `Phát hiện ${issueType.toLowerCase()} tại ${district.name}. ${snippet}`,
             priority: priority,
             solution: priority === 'Cao' ? 'Cử đội ứng phó khẩn cấp ngay lập tức.' : 'Lên lịch kiểm tra và xử lý trong 48 giờ tới.',
             isIssuePresent: true
