@@ -48,7 +48,7 @@ export interface ChatMessage {
 export interface ToastMessage {
   id: number;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning';
 }
 
 export interface EducationalTopic {

@@ -1,7 +1,13 @@
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
+import path from 'path';
+import os from 'os';
 
-const db = new Database('danang_green.db');
+// Determine database path. On Vercel, the root is read-only, so we must use /tmp
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+const dbPath = isVercel ? path.join(os.tmpdir(), 'danang_green.db') : 'danang_green.db';
+
+const db = new Database(dbPath);
 
 export const initDb = () => {
   // Users table

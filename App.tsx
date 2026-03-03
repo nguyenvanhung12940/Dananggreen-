@@ -101,6 +101,9 @@ const App: React.FC = () => {
   const [pendingReportsCount, setPendingReportsCount] = useState<number>(0);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
 
+  // Auto Demo Mode State
+  const [isAutoDemoMode, setIsAutoDemoMode] = useState<boolean>(false);
+
   // Load user from local storage
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -217,6 +220,70 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Auto Demo Mode Effect
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (isAutoDemoMode) {
+      addToast('Đã bật Chế độ Demo Tự động. Báo cáo sẽ được tạo mỗi 10 giây.', 'success');
+      
+      const generateMockReport = () => {
+        const regions = [
+          { name: 'Đà Nẵng (Trung tâm)', latMin: 16.03, latMax: 16.08, lngMin: 108.18, lngMax: 108.25, types: ['Xả rác không đúng nơi quy định', 'Khác'] },
+          { name: 'Đà Nẵng (Hòa Vang)', latMin: 15.95, latMax: 16.05, lngMin: 107.95, lngMax: 108.10, types: ['Sạt lở đất', 'Khác'] },
+          { name: 'Quảng Nam (Đồng bằng)', latMin: 15.50, latMax: 15.90, lngMin: 108.20, lngMax: 108.50, types: ['Ngập lụt', 'Khác'] },
+          { name: 'Quảng Nam (Miền núi)', latMin: 15.10, latMax: 15.80, lngMin: 107.40, lngMax: 108.10, types: ['Sạt lở đất', 'Khác'] }
+        ];
+
+        const region = regions[Math.floor(Math.random() * regions.length)];
+        const lat = Math.random() * (region.latMax - region.latMin) + region.latMin;
+        const lng = Math.random() * (region.lngMax - region.lngMin) + region.lngMin;
+        const issueType = region.types[Math.floor(Math.random() * region.types.length)] as AIAnalysis['issueType'];
+        const priority = (Math.random() > 0.7 ? 'Cao' : (Math.random() > 0.4 ? 'Trung bình' : 'Thấp')) as AIAnalysis['priority'];
+        
+        const images = [
+          'https://picsum.photos/seed/trash/800/600',
+          'https://picsum.photos/seed/forest/800/600',
+          'https://picsum.photos/seed/water/800/600',
+          'https://picsum.photos/seed/pollution/800/600'
+        ];
+
+        const newReport: EnvironmentalReport = {
+          id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          mediaUrl: images[Math.floor(Math.random() * images.length)],
+          mediaType: 'image',
+          latitude: lat,
+          longitude: lng,
+          userDescription: `Phát hiện ${issueType.toLowerCase()} tại khu vực ${region.name}.`,
+          description: `Hệ thống AI nhận diện có dấu hiệu ${issueType.toLowerCase()}.`,
+          status: 'Báo cáo mới',
+          timestamp: new Date(),
+          area: region.name.includes('Đà Nẵng') ? 'Đà Nẵng' : 'Quảng Nam',
+          aiAnalysis: {
+            issueType: issueType,
+            description: `Hệ thống AI nhận diện có dấu hiệu ${issueType.toLowerCase()}. Cần cử cán bộ kiểm tra hiện trường.`,
+            priority: priority,
+            solution: priority === 'Cao' ? 'Xử lý khẩn cấp trong 24h' : 'Lên kế hoạch kiểm tra trong tuần',
+            isIssuePresent: true
+          }
+        };
+
+        setReports(prev => [newReport, ...prev]);
+        addToast(`Sự cố mới: ${issueType} tại ${region.name}`, 'warning');
+      };
+
+      // Generate first report immediately
+      generateMockReport();
+      
+      // Then every 10 seconds
+      intervalId = setInterval(generateMockReport, 10000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isAutoDemoMode]);
+
   const updatePendingReportsCount = () => {
     getOfflineReports().then(reports => {
       setPendingReportsCount(reports.length);
@@ -331,7 +398,7 @@ const App: React.FC = () => {
     }
   }, [userPoints]);
 
-  const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     const id = Date.now();
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
   }, []);
@@ -612,7 +679,7 @@ const App: React.FC = () => {
       case 'login':
         return <LoginView onLogin={handleLogin} />;
       case 'dashboard':
-        return <DashboardView user={user} />;
+        return <DashboardView user={user} reports={reports} />;
       default:
         return <HomeView 
                   reports={reports} 
@@ -688,6 +755,20 @@ const App: React.FC = () => {
                   Cán bộ
                 </button>
               )}
+
+              {/* Auto Demo Toggle */}
+              <button
+                onClick={() => setIsAutoDemoMode(!isAutoDemoMode)}
+                className={`hidden md:flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  isAutoDemoMode 
+                    ? 'bg-red-100 text-red-600 border border-red-200 animate-pulse' 
+                    : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                }`}
+                title="Tự động tạo báo cáo giả lập mỗi 10s"
+              >
+                <div className={`w-2 h-2 rounded-full mr-2 ${isAutoDemoMode ? 'bg-red-500' : 'bg-slate-400'}`}></div>
+                {isAutoDemoMode ? 'Đang chạy Demo (10s)' : 'Bật Demo'}
+              </button>
 
                <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 text-amber-900 font-bold px-4 py-1.5 rounded-full text-sm shadow-sm">
                   <TrophyIcon className="w-5 h-5 text-amber-500" />

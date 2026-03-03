@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
@@ -21,14 +22,15 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 interface DashboardViewProps {
   user?: any;
+  reports: EnvironmentalReport[];
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ user }) => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [reports, setReports] = useState<EnvironmentalReport[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'looker'>('overview');
+
+  const lookerUrl = import.meta.env.VITE_LOOKER_DASHBOARD_URL;
 
   // Mock Leaderboard Data
   const leaderboard = [
@@ -39,85 +41,52 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user }) => {
       { name: 'Hoàng Văn E', points: 600, rank: 'Thành viên mới', avatar: 'https://i.pravatar.cc/150?u=e' },
   ];
 
-  const fetchData = async () => {
-    try {
-      const [statsRes, reportsRes, healthRes] = await Promise.all([
-        fetch('/api/stats').then(res => res.json()),
-        fetch('/api/reports').then(res => res.json()),
-        fetch('/api/health').then(res => res.json())
-      ]);
-      
-      setHealthStatus(healthRes);
-      let filteredReports = reportsRes;
-      let filteredStats = statsRes;
-
-      // Filter by area if user is not admin/environment_department and has an area assigned
-      const isGlobalUser = user && (user.role === 'admin' || user.role === 'environment_department');
-      if (user && !isGlobalUser && user.area && user.area !== 'All') {
-        filteredReports = reportsRes.filter((r: any) => r.area === user.area);
-      }
-
-      // Calculate stats by Region (Da Nang vs Quang Nam)
-      const daNangDistricts = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa'];
-      
-      const regionCounts = filteredReports.reduce((acc: any, curr: any) => {
-        const region = daNangDistricts.includes(curr.area) ? 'Đà Nẵng' : 'Quảng Nam';
-        acc[region] = (acc[region] || 0) + 1;
-        return acc;
-      }, {});
-      
-      const byRegion = Object.keys(regionCounts).map(region => ({ region, count: regionCounts[region] }));
-
-      const total = filteredReports.length;
-      
-      const statusCounts = filteredReports.reduce((acc: any, curr: any) => {
-          acc[curr.status] = (acc[curr.status] || 0) + 1;
-          return acc;
-      }, {});
-      const byStatus = Object.keys(statusCounts).map(status => ({ status, count: statusCounts[status] }));
-
-      const priorityCounts = filteredReports.reduce((acc: any, curr: any) => {
-          acc[curr.priority] = (acc[curr.priority] || 0) + 1;
-          return acc;
-      }, {});
-      const byPriority = Object.keys(priorityCounts).map(priority => ({ priority, count: priorityCounts[priority] }));
-
-      filteredStats = {
-          ...statsRes,
-          total,
-          byStatus,
-          byPriority,
-          byRegion,
-          byArea: statsRes.byArea // Keep original byArea for other uses if needed
-      };
-
-      setStats(filteredStats);
-      setReports(filteredReports);
-    } catch (error) {
-      console.error("Failed to fetch dashboard data", error);
-    } finally {
-      setIsLoading(false);
+  const filteredReports = React.useMemo(() => {
+    const isGlobalUser = user && (user.role === 'admin' || user.role === 'environment_department');
+    if (user && !isGlobalUser && user.area && user.area !== 'All') {
+      return reports.filter((r: any) => r.area === user.area);
     }
-  };
+    return reports;
+  }, [reports, user]);
+
+  const stats = React.useMemo(() => {
+    const daNangDistricts = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa'];
+    
+    const regionCounts = filteredReports.reduce((acc: any, curr: any) => {
+      const region = daNangDistricts.includes(curr.area) ? 'Đà Nẵng' : 'Quảng Nam';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const byRegion = Object.keys(regionCounts).map(region => ({ region, count: regionCounts[region] }));
+
+    const total = filteredReports.length;
+    
+    const statusCounts = filteredReports.reduce((acc: any, curr: any) => {
+        acc[curr.status] = (acc[curr.status] || 0) + 1;
+        return acc;
+    }, {});
+    const byStatus = Object.keys(statusCounts).map(status => ({ status, count: statusCounts[status] }));
+
+    const priorityCounts = filteredReports.reduce((acc: any, curr: any) => {
+        const priority = curr.aiAnalysis?.priority || curr.priority || 'Trung bình';
+        acc[priority] = (acc[priority] || 0) + 1;
+        return acc;
+    }, {});
+    const byPriority = Object.keys(priorityCounts).map(priority => ({ priority, count: priorityCounts[priority] }));
+
+    return {
+        total,
+        byStatus,
+        byPriority,
+        byRegion
+    };
+  }, [filteredReports]);
 
   useEffect(() => {
-    fetchData();
-    
-    // Setup WebSocket for real-time updates
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}`);
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'NEW_REPORT' || data.type === 'REPORT_UPDATED') {
-        fetchData(); // Refresh data on update
-      }
-    };
-
-    return () => ws.close();
+    fetch('/api/health').then(res => res.json()).then(setHealthStatus).catch(console.error);
   }, []);
 
-  if (isLoading) return <div className="p-8 text-center">Đang tải dữ liệu Dashboard...</div>;
   if (!stats) return <div className="p-8 text-center">Không có dữ liệu.</div>;
 
   return (
@@ -132,18 +101,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user }) => {
             </p>
           )}
         </div>
-        <div className="flex space-x-2">
-           <button 
-             onClick={() => setIsImportModalOpen(true)}
-             className="px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold flex items-center hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
-           >
-              <FileUpIcon className="w-4 h-4 mr-2" />
-              Nhập dữ liệu Excel
-           </button>
-           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold flex items-center">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-              Hệ thống Online
-           </span>
+        <div className="flex items-center space-x-4">
+          <div className="flex bg-slate-200 p-1 rounded-xl">
+            <button 
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Tổng quan
+            </button>
+            <button 
+              onClick={() => setActiveTab('looker')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'looker' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Phân tích Looker
+            </button>
+          </div>
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold flex items-center hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
+            >
+                <FileUpIcon className="w-4 h-4 mr-2" />
+                Nhập dữ liệu Excel
+            </button>
+          </div>
         </div>
       </div>
 
@@ -182,193 +163,252 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user }) => {
       <BulkImportModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        onImportSuccess={() => fetchData()} 
+        onImportSuccess={() => {
+          // Trigger a global refresh if needed, or just let the WebSocket/App handle it
+          window.location.reload();
+        }} 
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-sm font-medium">Tổng số sự cố</p>
-          <p className="text-4xl font-extrabold text-slate-800 mt-2">{stats.total}</p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-sm font-medium">Đang xử lý</p>
-          <p className="text-4xl font-extrabold text-amber-500 mt-2">
-            {stats.byStatus.find(s => s.status === 'Đang xử lý')?.count || 0}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-sm font-medium">Mức độ Cao</p>
-          <p className="text-4xl font-extrabold text-red-500 mt-2">
-            {stats.byPriority.find(p => p.priority === 'Cao')?.count || 0}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-sm font-medium">Đã xử lý</p>
-          <p className="text-4xl font-extrabold text-green-500 mt-2">
-            {stats.byStatus.find(s => s.status === 'Đã xử lý')?.count || 0}
-          </p>
-        </div>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-80">
-          <h3 className="font-bold text-slate-700 mb-4">Phân bố theo Khu vực (ĐN - QN)</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={(stats as any).byRegion}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                cursor={{ fill: '#f8fafc' }}
-              />
-              <Bar dataKey="count" fill="#0d9488" radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-80">
-          <h3 className="font-bold text-slate-700 mb-4">Trạng thái Xử lý</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={stats.byStatus}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="count"
-              >
-                {stats.byStatus.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* NEW SECTION: Leaderboard & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Leaderboard */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-1">
-              <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold text-slate-800 flex items-center">
-                      <TrophyIcon className="w-5 h-5 text-yellow-500 mr-2" />
-                      Bảng Xếp Hạng Xanh
-                  </h3>
-                  <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">Tháng này</span>
-              </div>
-              <div className="space-y-4">
-                  {leaderboard.map((user, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                          <div className="flex items-center space-x-3">
-                              <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'}`}>
-                                  {index + 1}
-                              </div>
-                              <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
-                              <div>
-                                  <p className="font-bold text-slate-800 text-sm">{user.name}</p>
-                                  <p className="text-xs text-slate-500">{user.rank}</p>
-                              </div>
-                          </div>
-                          <div className="text-right">
-                              <p className="font-bold text-teal-600">{user.points}</p>
-                              <p className="text-[10px] text-slate-400">điểm</p>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-              <button className="w-full mt-6 py-2 text-sm font-bold text-teal-600 hover:bg-teal-50 rounded-xl transition-colors">
-                  Xem tất cả
-              </button>
+      {activeTab === 'overview' ? (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <p className="text-slate-500 text-sm font-medium">Tổng số sự cố</p>
+              <p className="text-4xl font-extrabold text-slate-800 mt-2">{stats.total}</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <p className="text-slate-500 text-sm font-medium">Đang xử lý</p>
+              <p className="text-4xl font-extrabold text-amber-500 mt-2">
+                {stats.byStatus.find(s => s.status === 'Đang xử lý')?.count || 0}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <p className="text-slate-500 text-sm font-medium">Mức độ Cao</p>
+              <p className="text-4xl font-extrabold text-red-500 mt-2">
+                {stats.byPriority.find(p => p.priority === 'Cao')?.count || 0}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <p className="text-slate-500 text-sm font-medium">Đã xử lý</p>
+              <p className="text-4xl font-extrabold text-green-500 mt-2">
+                {stats.byStatus.find(s => s.status === 'Đã xử lý')?.count || 0}
+              </p>
+            </div>
           </div>
 
-          {/* Recent Activity (Taking up 2 columns) */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
-               <h3 className="font-bold text-slate-800 mb-6 flex items-center">
-                  <UsersIcon className="w-5 h-5 text-blue-500 mr-2" />
-                  Hoạt động Gần đây
-               </h3>
-               <div className="space-y-0">
-                  {reports.slice(0, 5).map((report, index) => (
-                      <div key={report.id} className="flex items-start space-x-4 p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
-                          <div className="relative flex-shrink-0">
-                              <img 
-                                src={report.mediaUrl} 
-                                alt="Report" 
-                                className="w-16 h-16 rounded-xl object-cover border border-slate-100 shadow-sm"
-                                onError={(e) => {(e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image'}}
-                              />
-                              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold ${
-                                  report.status === 'Báo cáo mới' ? 'bg-red-500' : 
-                                  report.status === 'Đang xử lý' ? 'bg-amber-500' : 'bg-green-500'
-                              }`}>
-                                  {report.status === 'Báo cáo mới' ? '!' : report.status === 'Đang xử lý' ? '...' : '✓'}
-                              </div>
-                          </div>
-                          <div className="flex-grow min-w-0">
-                              <div className="flex justify-between items-start">
-                                  <h4 className="font-bold text-slate-800 text-sm truncate pr-2">{report.aiAnalysis.issueType}</h4>
-                                  <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(report.timestamp).toLocaleDateString('vi-VN')}</span>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-1 line-clamp-2">{report.description}</p>
-                              <div className="flex items-center mt-2 space-x-2">
-                                  <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium">
-                                      {report.area || 'Chưa xác định'}
-                                  </span>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                                      report.aiAnalysis.priority === 'Cao' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                                  }`}>
-                                      {report.aiAnalysis.priority}
-                                  </span>
-                              </div>
-                          </div>
-                      </div>
-                  ))}
-                  {reports.length === 0 && (
-                      <div className="text-center py-10 text-slate-400 text-sm">Chưa có hoạt động nào.</div>
-                  )}
-               </div>
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-80">
+              <h3 className="font-bold text-slate-700 mb-4">Phân bố theo Khu vực (ĐN - QN)</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={(stats as any).byRegion}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    cursor={{ fill: '#f8fafc' }}
+                  />
+                  <Bar dataKey="count" fill="#0d9488" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-80">
+              <h3 className="font-bold text-slate-700 mb-4">Trạng thái Xử lý</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.byStatus}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="count"
+                  >
+                    {stats.byStatus.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-      </div>
 
-      {/* Heatmap / Risk Map */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
-        <h3 className="font-bold text-slate-700 mb-4">Bản đồ Rủi ro Môi trường (Heatmap)</h3>
-        <div className="flex-grow rounded-xl overflow-hidden relative z-0">
-           <MapContainer center={[15.85, 108.3]} zoom={9} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            {reports.map((report) => (
-              <CircleMarker 
-                key={report.id}
-                center={[report.latitude, report.longitude]}
-                radius={report.aiAnalysis.priority === 'Cao' ? 15 : 8}
-                pathOptions={{ 
-                    color: report.aiAnalysis.priority === 'Cao' ? 'red' : (report.aiAnalysis.priority === 'Trung bình' ? 'orange' : 'green'),
-                    fillColor: report.aiAnalysis.priority === 'Cao' ? 'red' : (report.aiAnalysis.priority === 'Trung bình' ? 'orange' : 'green'),
-                    fillOpacity: 0.6
-                }}
-              >
-                <Popup>
-                  <div className="text-sm">
-                    <p className="font-bold">{report.aiAnalysis.issueType}</p>
-                    <p>Mức độ: {report.aiAnalysis.priority}</p>
-                    <p>{new Date(report.timestamp).toLocaleString()}</p>
+          {/* NEW SECTION: Leaderboard & Recent Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Leaderboard */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-1">
+                  <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-bold text-slate-800 flex items-center">
+                          <TrophyIcon className="w-5 h-5 text-yellow-500 mr-2" />
+                          Bảng Xếp Hạng Xanh
+                      </h3>
+                      <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">Tháng này</span>
                   </div>
-                </Popup>
-              </CircleMarker>
-            ))}
-          </MapContainer>
+                  <div className="space-y-4">
+                      {leaderboard.map((user, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                              <div className="flex items-center space-x-3">
+                                  <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'}`}>
+                                      {index + 1}
+                                  </div>
+                                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
+                                  <div>
+                                      <p className="font-bold text-slate-800 text-sm">{user.name}</p>
+                                      <p className="text-xs text-slate-500">{user.rank}</p>
+                                  </div>
+                              </div>
+                              <div className="text-right">
+                                  <p className="font-bold text-teal-600">{user.points}</p>
+                                  <p className="text-[10px] text-slate-400">điểm</p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+                  <button className="w-full mt-6 py-2 text-sm font-bold text-teal-600 hover:bg-teal-50 rounded-xl transition-colors">
+                      Xem tất cả
+                  </button>
+              </div>
+
+              {/* Recent Activity (Taking up 2 columns) */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
+                   <h3 className="font-bold text-slate-800 mb-6 flex items-center">
+                      <UsersIcon className="w-5 h-5 text-blue-500 mr-2" />
+                      Hoạt động Gần đây
+                   </h3>
+                   <div className="space-y-0">
+                      {filteredReports.slice(0, 5).map((report, index) => (
+                          <div key={report.id} className="flex items-start space-x-4 p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                              <div className="relative flex-shrink-0">
+                                  <img 
+                                    src={report.mediaUrl} 
+                                    alt="Report" 
+                                    className="w-16 h-16 rounded-xl object-cover border border-slate-100 shadow-sm"
+                                    onError={(e) => {(e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image'}}
+                                  />
+                                  <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold ${
+                                      report.status === 'Báo cáo mới' ? 'bg-red-500' : 
+                                      report.status === 'Đang xử lý' ? 'bg-amber-500' : 'bg-green-500'
+                                  }`}>
+                                      {report.status === 'Báo cáo mới' ? '!' : report.status === 'Đang xử lý' ? '...' : '✓'}
+                                  </div>
+                              </div>
+                              <div className="flex-grow min-w-0">
+                                  <div className="flex justify-between items-start">
+                                      <h4 className="font-bold text-slate-800 text-sm truncate pr-2">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</h4>
+                                      <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(report.timestamp).toLocaleDateString('vi-VN')}</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{report.description || report.userDescription}</p>
+                                  <div className="flex items-center mt-2 space-x-2">
+                                      <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium">
+                                          {report.area || 'Chưa xác định'}
+                                      </span>
+                                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                          (report.aiAnalysis?.priority) === 'Cao' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                                      }`}>
+                                          {report.aiAnalysis?.priority || 'Trung bình'}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                      {filteredReports.length === 0 && (
+                          <div className="text-center py-10 text-slate-400 text-sm">Chưa có hoạt động nào.</div>
+                      )}
+                   </div>
+              </div>
+          </div>
+
+          {/* Heatmap / Risk Map */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
+            <h3 className="font-bold text-slate-700 mb-4">Bản đồ Rủi ro Môi trường (Heatmap)</h3>
+            <div className="flex-grow rounded-xl overflow-hidden relative z-0">
+               <MapContainer center={[15.85, 108.3]} zoom={9} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {filteredReports.map((report) => (
+                  <CircleMarker 
+                    key={report.id}
+                    center={[report.latitude, report.longitude]}
+                    radius={(report.aiAnalysis?.priority) === 'Cao' ? 15 : 8}
+                    pathOptions={{ 
+                        color: (report.aiAnalysis?.priority) === 'Cao' ? 'red' : ((report.aiAnalysis?.priority) === 'Trung bình' ? 'orange' : 'green'),
+                        fillColor: (report.aiAnalysis?.priority) === 'Cao' ? 'red' : ((report.aiAnalysis?.priority) === 'Trung bình' ? 'orange' : 'green'),
+                        fillOpacity: 0.6
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-bold">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</p>
+                        <p>Mức độ: {report.aiAnalysis?.priority || 'Trung bình'}</p>
+                        <p>{new Date(report.timestamp).toLocaleString()}</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                ))}
+              </MapContainer>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-[700px] flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-slate-800 flex items-center">
+              <svg className="w-5 h-5 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Looker Analytics Dashboard
+            </h3>
+            <a 
+              href={lookerUrl} 
+              target="_blank" 
+              rel="noreferrer"
+              className="text-xs text-teal-600 font-bold hover:underline flex items-center"
+            >
+              Mở trong tab mới
+              <svg className="w-3 h-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
+          
+          {lookerUrl ? (
+            <iframe
+              src={lookerUrl}
+              className="w-full flex-grow border-0 rounded-2xl"
+              title="Looker Dashboard"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex-grow flex flex-col items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+              <div className="bg-teal-100 p-4 rounded-full mb-4">
+                <svg className="w-12 h-12 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-bold text-slate-800 mb-2">Chưa cấu hình Looker</h4>
+              <p className="text-slate-500 max-w-md mb-6">
+                Bạn cần cung cấp URL Dashboard Looker Studio hoặc Looker Embed trong biến môi trường <code>VITE_LOOKER_DASHBOARD_URL</code>.
+              </p>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 text-left w-full max-w-lg">
+                <p className="text-xs font-bold text-slate-400 uppercase mb-2">Hướng dẫn kết nối:</p>
+                <ol className="text-xs text-slate-600 space-y-2 list-decimal list-inside">
+                  <li>Mở Dashboard trên Looker Studio.</li>
+                  <li>Chọn <strong>File &gt; Embed report</strong>.</li>
+                  <li>Bật <strong>Enable embedding</strong> và sao chép URL trong phần <code>src="..."</code>.</li>
+                  <li>Dán URL đó vào biến môi trường của ứng dụng.</li>
+                </ol>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
