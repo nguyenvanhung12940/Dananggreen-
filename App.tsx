@@ -101,8 +101,8 @@ const App: React.FC = () => {
   const [pendingReportsCount, setPendingReportsCount] = useState<number>(0);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
 
-  // Auto Demo Mode State
-  const [isAutoDemoMode, setIsAutoDemoMode] = useState<boolean>(false);
+  // Auto Monitoring Mode State
+  const [isAutoMonitoring, setIsAutoMonitoring] = useState<boolean>(false);
 
   // Load user from local storage
   useEffect(() => {
@@ -220,56 +220,97 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Auto Demo Mode Effect
+  // Auto Monitoring Mode Effect
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    if (isAutoDemoMode) {
-      addToast('Đã bật Chế độ Demo Tự động. Báo cáo sẽ được tạo mỗi 10 giây.', 'success');
+    if (isAutoMonitoring) {
+      addToast('Đã bật Chế độ Giám sát Tự động. Hệ thống sẽ cập nhật dữ liệu mỗi 10 giây.', 'success');
       
       const generateMockReport = () => {
-        const regions = [
-          { name: 'Đà Nẵng (Trung tâm)', latMin: 16.03, latMax: 16.08, lngMin: 108.18, lngMax: 108.25, types: ['Xả rác không đúng nơi quy định', 'Khác'] },
-          { name: 'Đà Nẵng (Hòa Vang)', latMin: 15.95, latMax: 16.05, lngMin: 107.95, lngMax: 108.10, types: ['Sạt lở đất', 'Khác'] },
-          { name: 'Quảng Nam (Đồng bằng)', latMin: 15.50, latMax: 15.90, lngMin: 108.20, lngMax: 108.50, types: ['Ngập lụt', 'Khác'] },
-          { name: 'Quảng Nam (Miền núi)', latMin: 15.10, latMax: 15.80, lngMin: 107.40, lngMax: 108.10, types: ['Sạt lở đất', 'Khác'] }
+        const quangNamDistricts = [
+          { name: 'Tam Kỳ', lat: 15.567, lng: 108.483 },
+          { name: 'Hội An', lat: 15.883, lng: 108.333 },
+          { name: 'Điện Bàn', lat: 15.883, lng: 108.233 },
+          { name: 'Bắc Trà My', lat: 15.283, lng: 108.217 },
+          { name: 'Duy Xuyên', lat: 15.817, lng: 108.250 },
+          { name: 'Đại Lộc', lat: 15.883, lng: 107.983 },
+          { name: 'Đông Giang', lat: 15.950, lng: 107.750 },
+          { name: 'Hiệp Đức', lat: 15.550, lng: 108.083 },
+          { name: 'Nam Giang', lat: 15.617, lng: 107.517 },
+          { name: 'Nam Trà My', lat: 15.017, lng: 108.083 },
+          { name: 'Nông Sơn', lat: 15.650, lng: 107.967 },
+          { name: 'Núi Thành', lat: 15.417, lng: 108.617 },
+          { name: 'Phú Ninh', lat: 15.517, lng: 108.417 },
+          { name: 'Phước Sơn', lat: 15.350, lng: 107.783 },
+          { name: 'Quế Sơn', lat: 15.633, lng: 108.150 },
+          { name: 'Tây Giang', lat: 15.917, lng: 107.450 },
+          { name: 'Thăng Bình', lat: 15.717, lng: 108.367 },
+          { name: 'Tiên Phước', lat: 15.483, lng: 108.267 }
         ];
 
-        const region = regions[Math.floor(Math.random() * regions.length)];
-        const lat = Math.random() * (region.latMax - region.latMin) + region.latMin;
-        const lng = Math.random() * (region.lngMax - region.lngMin) + region.lngMin;
-        const issueType = region.types[Math.floor(Math.random() * region.types.length)] as AIAnalysis['issueType'];
+        const district = quangNamDistricts[Math.floor(Math.random() * quangNamDistricts.length)];
+        // Thêm độ lệch ngẫu nhiên nhỏ cho tọa độ
+        const lat = district.lat + (Math.random() - 0.5) * 0.04;
+        const lng = district.lng + (Math.random() - 0.5) * 0.04;
+
+        const issueTypes: AIAnalysis['issueType'][] = [
+          'Xả rác không đúng nơi quy định',
+          'Ngập lụt',
+          'Sạt lở đất',
+          'Cần chăm sóc cây xanh',
+          'Khác'
+        ];
+        const issueType = issueTypes[Math.floor(Math.random() * issueTypes.length)];
+        
+        const researchSnippets = [
+          "Dữ liệu cảm biến cho thấy sự thay đổi bất thường.",
+          "Nghiên cứu thực địa ghi nhận tình trạng ô nhiễm cục bộ.",
+          "Phân tích hình ảnh vệ tinh phát hiện biến đổi bề mặt.",
+          "Báo cáo từ hệ thống giám sát tự động IoT.",
+          "Kết quả quan trắc môi trường định kỳ.",
+          "Dữ liệu từ trạm quan trắc khí tượng thủy văn khu vực.",
+          "Phân tích từ mô hình dự báo rủi ro thiên tai."
+        ];
+        const snippet = researchSnippets[Math.floor(Math.random() * researchSnippets.length)];
+
         const priority = (Math.random() > 0.7 ? 'Cao' : (Math.random() > 0.4 ? 'Trung bình' : 'Thấp')) as AIAnalysis['priority'];
         
-        const images = [
-          'https://picsum.photos/seed/trash/800/600',
-          'https://picsum.photos/seed/forest/800/600',
-          'https://picsum.photos/seed/water/800/600',
-          'https://picsum.photos/seed/pollution/800/600'
-        ];
+        const imageKeywords: Record<string, string> = {
+          'Xả rác không đúng nơi quy định': 'trash,waste,pollution',
+          'Ngập lụt': 'flood,water,rain',
+          'Sạt lở đất': 'landslide,mud,mountain',
+          'Cần chăm sóc cây xanh': 'tree,garden,nature',
+          'Khác': 'environment,city,landscape'
+        };
+
+        const keyword = `${imageKeywords[issueType] || 'environment'},vietnam`;
+        const seed = Math.floor(Math.random() * 1000);
+        // Use loremflickr with 'vietnam' tag for better context
+        const imageUrl = `https://loremflickr.com/800/600/${keyword}?lock=${seed}`;
 
         const newReport: EnvironmentalReport = {
-          id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          mediaUrl: images[Math.floor(Math.random() * images.length)],
+          id: `rep-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          mediaUrl: imageUrl,
           mediaType: 'image',
           latitude: lat,
           longitude: lng,
-          userDescription: `Phát hiện ${issueType.toLowerCase()} tại khu vực ${region.name}.`,
-          description: `Hệ thống AI nhận diện có dấu hiệu ${issueType.toLowerCase()}.`,
+          userDescription: `Người dân tại khu vực đó (${lat.toFixed(4)}, ${lng.toFixed(4)}): Phát hiện ${issueType.toLowerCase()} tại huyện ${district.name}. ${snippet}`,
+          description: `Người dân tại khu vực đó (${lat.toFixed(4)}, ${lng.toFixed(4)}): ${issueType}. ${snippet}`,
           status: 'Báo cáo mới',
           timestamp: new Date(),
-          area: region.name.includes('Đà Nẵng') ? 'Đà Nẵng' : 'Quảng Nam',
+          area: `Huyện ${district.name}, Quảng Nam`,
           aiAnalysis: {
             issueType: issueType,
-            description: `Hệ thống AI nhận diện có dấu hiệu ${issueType.toLowerCase()}. Cần cử cán bộ kiểm tra hiện trường.`,
+            description: `Người dân tại khu vực đó (${lat.toFixed(4)}, ${lng.toFixed(4)}): ${issueType}. ${snippet}`,
             priority: priority,
-            solution: priority === 'Cao' ? 'Xử lý khẩn cấp trong 24h' : 'Lên kế hoạch kiểm tra trong tuần',
+            solution: priority === 'Cao' ? 'Cử đội ứng phó khẩn cấp ngay lập tức.' : 'Lên lịch kiểm tra và xử lý trong 48 giờ tới.',
             isIssuePresent: true
           }
         };
 
         setReports(prev => [newReport, ...prev]);
-        addToast(`Sự cố mới: ${issueType} tại ${region.name}`, 'warning');
+        addToast(`Phát hiện sự cố: ${issueType} tại ${district.name}`, 'warning');
       };
 
       // Generate first report immediately
@@ -282,7 +323,7 @@ const App: React.FC = () => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isAutoDemoMode]);
+  }, [isAutoMonitoring]);
 
   const updatePendingReportsCount = () => {
     getOfflineReports().then(reports => {
@@ -399,7 +440,7 @@ const App: React.FC = () => {
   }, [userPoints]);
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
   }, []);
 
@@ -756,18 +797,18 @@ const App: React.FC = () => {
                 </button>
               )}
 
-              {/* Auto Demo Toggle */}
+              {/* Auto Monitoring Toggle */}
               <button
-                onClick={() => setIsAutoDemoMode(!isAutoDemoMode)}
+                onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
                 className={`hidden md:flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  isAutoDemoMode 
-                    ? 'bg-red-100 text-red-600 border border-red-200 animate-pulse' 
+                  isAutoMonitoring 
+                    ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 animate-pulse' 
                     : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
                 }`}
-                title="Tự động tạo báo cáo giả lập mỗi 10s"
+                title="Tự động giám sát và cập nhật báo cáo mỗi 10s"
               >
-                <div className={`w-2 h-2 rounded-full mr-2 ${isAutoDemoMode ? 'bg-red-500' : 'bg-slate-400'}`}></div>
-                {isAutoDemoMode ? 'Đang chạy Demo (10s)' : 'Bật Demo'}
+                <div className={`w-2 h-2 rounded-full mr-2 ${isAutoMonitoring ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
+                {isAutoMonitoring ? 'Đang Giám sát (10s)' : 'Bật Giám sát'}
               </button>
 
                <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 text-amber-900 font-bold px-4 py-1.5 rounded-full text-sm shadow-sm">

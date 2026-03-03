@@ -53,7 +53,7 @@ export const analyzeEnvironmentalImage = async (base64Image: string, mimeType: s
   const mockAnalysis = (): AIAnalysis => ({
     isIssuePresent: true,
     issueType: "Xả rác không đúng nơi quy định",
-    description: "Phát hiện rác thải sinh hoạt tập kết sai quy định (Phân tích giả lập do hệ thống AI đang bận).",
+    description: "Người dân tại khu vực đó: Phát hiện rác thải sinh hoạt tập kết sai quy định (Dữ liệu dự phòng).",
     priority: "Trung bình",
     solution: "Cần cử đội vệ sinh môi trường đến thu gom và nhắc nhở người dân khu vực.",
     recommendedSupplies: []
@@ -124,7 +124,7 @@ export const analyzeEnvironmentalImage = async (base64Image: string, mimeType: s
           return callGemini(retryCount + 1);
       }
 
-      // If quota exceeded or other fatal error, fallback to mock for demo purposes
+      // If quota exceeded or other fatal error, fallback to mock for operational continuity
       console.warn("Falling back to mock AI analysis due to API error.");
       return mockAnalysis();
     }

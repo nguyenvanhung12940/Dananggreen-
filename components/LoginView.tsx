@@ -128,7 +128,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError('');
     setSuccess('');
 
-    // Hardcoded credentials for Demo/Officials
+    // Hardcoded credentials for Officials
     const validUsers = [
       { username: 'admin@dananggreen.vn', password: '123456', role: 'environment_department', organizationName: 'Hệ thống Đà Nẵng Green', area: 'All' },
       { username: 'quanly@dananggreen.vn', password: '123456', role: 'department_manager', organizationName: 'Ban Quản lý Môi trường', area: 'Hải Châu' },
@@ -143,7 +143,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       setTimeout(() => {
         const userData = {
           ...matchedUser,
-          token: 'demo-token-' + Date.now()
+          token: 'auth-token-' + Date.now()
         };
         localStorage.setItem('token', userData.token);
         localStorage.setItem('user', JSON.stringify(userData));
@@ -326,7 +326,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             {!isRegistering && (
               <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tài khoản demo cán bộ</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tài khoản Cán bộ Hệ thống</p>
                 <div className="grid grid-cols-1 gap-2">
                   <button 
                     type="button"

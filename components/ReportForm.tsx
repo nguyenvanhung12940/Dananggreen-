@@ -206,7 +206,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit, onCancel, isLoading, 
                         ) : (
                             <>
                                 <SparklesIcon className="w-4 h-4" />
-                                <span>Phân tích bằng AI</span>
+                                <span>Phân tích tự động</span>
                             </>
                         )}
                     </button>

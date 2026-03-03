@@ -79,7 +79,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ analysis }) => {
       <div className="p-5 space-y-6">
         {/* Description Section */}
         <div>
-          <h4 className="text-sm font-semibold text-slate-500 mb-2">Phân tích chi tiết</h4>
+          <h4 className="text-sm font-semibold text-slate-500 mb-2">Thông tin chi tiết</h4>
           <p className="text-slate-700 text-sm leading-relaxed bg-slate-50/50 p-3 rounded-xl border border-slate-100">
             {analysis.description}
           </p>
@@ -94,7 +94,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ analysis }) => {
                    <div className="bg-indigo-100 p-1.5 rounded-lg mr-3">
                       <SparklesIcon className="h-4 w-4 text-indigo-600" />
                    </div>
-                   <h4 className="text-sm font-bold text-indigo-900">Giải pháp đề xuất bởi AI</h4>
+                   <h4 className="text-sm font-bold text-indigo-900">Giải pháp đề xuất</h4>
                 </div>
                 <p className="text-sm text-indigo-800 pl-11">{analysis.solution}</p>
              </div>
