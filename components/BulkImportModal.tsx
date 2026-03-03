@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { XMarkIcon as XIcon } from './icons/XMarkIcon';
 import { CheckCircleIcon as CheckIcon } from './icons/CheckCircleIcon';
 import { XCircleIcon as AlertCircleIcon } from './icons/XCircleIcon';
+import { FileUpIcon } from './icons/FileUpIcon';
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -16,13 +18,53 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'paste' | 'preview'>('paste');
+  const [importType, setImportType] = useState<'reports' | 'users'>('reports');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        
+        if (data.length < 2) {
+          setError('File Excel phải có ít nhất một hàng tiêu đề và một hàng dữ liệu.');
+          return;
+        }
+
+        const rawHeaders = (data[0] as any[]).map(h => String(h).trim());
+        const rows = data.slice(1).map((row: any) => {
+          const obj: any = {};
+          rawHeaders.forEach((header, index) => {
+            obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
+          });
+          return obj;
+        });
+
+        setHeaders(rawHeaders);
+        setParsedData(rows);
+        setStep('preview');
+        setError(null);
+      } catch (err) {
+        setError('Không thể đọc file Excel. Vui lòng kiểm tra định dạng.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
 
   const handleParse = () => {
     setError(null);
     if (!pastedData.trim()) {
-      setError('Vui lòng dán dữ liệu từ bảng tính.');
+      setError('Vui lòng dán dữ liệu hoặc tải lên file Excel.');
       return;
     }
 
@@ -33,14 +75,6 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
     }
 
     const rawHeaders = rows[0].map(h => h.trim());
-    
-    // Validate headers
-    const invalidHeaders = rawHeaders.filter(h => !/^[a-zA-Z0-9_-]+$/.test(h));
-    if (invalidHeaders.length > 0) {
-      setError(`Tiêu đề chứa ký tự không hợp lệ: ${invalidHeaders.join(', ')}. Chỉ chấp nhận chữ cái, số, dấu gạch ngang (-) và gạch dưới (_).`);
-      return;
-    }
-
     const data = rows.slice(1).map(row => {
       const obj: any = {};
       rawHeaders.forEach((header, index) => {
@@ -59,45 +93,65 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
     setError(null);
 
     try {
-      // In a real app, we'd send this to a bulk import endpoint
-      // For this demo, we'll iterate and send to the existing create report endpoint
-      // or create a new bulk endpoint if we want to be efficient.
-      
-      const reportsToImport = parsedData.map(item => ({
-        id: `bulk-${Math.random().toString(36).substr(2, 9)}`,
-        mediaUrl: item.mediaUrl || 'https://picsum.photos/seed/env/800/600',
-        mediaType: item.mediaType || 'image',
-        latitude: parseFloat(item.latitude),
-        longitude: parseFloat(item.longitude),
-        userDescription: item.description || '',
-        status: item.status || 'Báo cáo mới',
-        aiAnalysis: {
-          issueType: item.issueType || 'Sự cố môi trường',
-          description: item.description || '',
-          priority: item.priority || 'Trung bình',
-          solution: item.solution || 'Đang chờ xử lý',
-          isIssuePresent: true
+      if (importType === 'reports') {
+        const reportsToImport = parsedData.map(item => ({
+          id: `bulk-${Math.random().toString(36).substr(2, 9)}`,
+          mediaUrl: item.mediaUrl || 'https://picsum.photos/seed/env/800/600',
+          mediaType: item.mediaType || 'image',
+          latitude: parseFloat(item.latitude),
+          longitude: parseFloat(item.longitude),
+          userDescription: item.description || item.userDescription || '',
+          status: item.status || 'Báo cáo mới',
+          aiAnalysis: {
+            issueType: item.issueType || 'Sự cố môi trường',
+            description: item.description || item.userDescription || '',
+            priority: item.priority || 'Trung bình',
+            solution: item.solution || 'Đang chờ xử lý',
+            isIssuePresent: true
+          }
+        }));
+
+        const invalidCoords = reportsToImport.filter(r => isNaN(r.latitude) || isNaN(r.longitude));
+        if (invalidCoords.length > 0) {
+          throw new Error('Một số hàng có tọa độ (latitude/longitude) không hợp lệ.');
         }
-      }));
 
-      // Validate coordinates
-      const invalidCoords = reportsToImport.filter(r => isNaN(r.latitude) || isNaN(r.longitude));
-      if (invalidCoords.length > 0) {
-        throw new Error('Một số hàng có tọa độ (latitude/longitude) không hợp lệ.');
-      }
+        const response = await fetch('/api/reports/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reports: reportsToImport }),
+        });
 
-      const response = await fetch('/api/reports/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reports: reportsToImport }),
-      });
-
-      if (response.ok) {
-        onImportSuccess();
-        onClose();
+        if (response.ok) {
+          onImportSuccess();
+          onClose();
+        } else {
+          const data = await response.json();
+          throw new Error(data.message || 'Lỗi khi nhập dữ liệu báo cáo.');
+        }
       } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Lỗi khi nhập dữ liệu.');
+        // Import Users
+        const usersToImport = parsedData.map(item => ({
+          username: item.username || item.email,
+          password: item.password || '123456',
+          role: item.role || 'citizen',
+          area: item.area || 'All',
+          organizationName: item.organizationName || item.organization || ''
+        }));
+
+        const response = await fetch('/api/auth/bulk-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ users: usersToImport }),
+        });
+
+        if (response.ok) {
+          onImportSuccess();
+          onClose();
+        } else {
+          const data = await response.json();
+          throw new Error(data.message || 'Lỗi khi nhập dữ liệu người dùng.');
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -112,8 +166,8 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Nhập dữ liệu hàng loạt</h2>
-            <p className="text-sm text-slate-500">Dán dữ liệu từ Google Sheets hoặc Excel</p>
+            <h2 className="text-xl font-bold text-slate-800">Nhập dữ liệu Excel / Sheets</h2>
+            <p className="text-sm text-slate-500">Tải lên file hoặc dán dữ liệu từ bảng tính</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <XIcon className="w-6 h-6 text-slate-500" />
@@ -129,23 +183,77 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
             </div>
           )}
 
+          {step === 'paste' && (
+            <div className="flex mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+              <button 
+                onClick={() => setImportType('reports')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${importType === 'reports' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Nhập Báo cáo
+              </button>
+              <button 
+                onClick={() => setImportType('users')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${importType === 'users' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Nhập Người dùng
+              </button>
+            </div>
+          )}
+
           {step === 'paste' ? (
-            <div className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                <h4 className="text-sm font-bold text-blue-800 mb-2">Hướng dẫn:</h4>
-                <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
-                  <li>Hàng đầu tiên phải là tiêu đề (latitude, longitude, issueType, description, priority).</li>
-                  <li>Tiêu đề không được chứa ký tự đặc biệt (chỉ dùng a-z, 0-9, -, _).</li>
-                  <li>Cột ngày giờ (nếu có) định dạng: YYYY-MM-DD HH:mm:ss.</li>
-                  <li>Sao chép vùng dữ liệu từ Excel/Sheets và dán vào ô bên dưới.</li>
-                </ul>
+            <div className="space-y-6">
+              {/* File Upload Area */}
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-teal-500 hover:bg-teal-50/30 transition-all cursor-pointer group"
+              >
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  accept=".xlsx, .xls, .csv" 
+                  className="hidden" 
+                />
+                <div className="bg-teal-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-teal-600 group-hover:scale-110 transition-transform">
+                  <FileUpIcon className="w-6 h-6" />
+                </div>
+                <h4 className="font-bold text-slate-700">Tải lên file Excel (.xlsx, .xls)</h4>
+                <p className="text-xs text-slate-400 mt-1">Hoặc kéo và thả file vào đây</p>
               </div>
-              <textarea
-                value={pastedData}
-                onChange={(e) => setPastedData(e.target.value)}
-                placeholder="Dán dữ liệu tại đây..."
-                className="w-full h-64 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none font-mono text-sm resize-none bg-slate-50"
-              />
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-100"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-slate-400">Hoặc dán dữ liệu</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                  <h4 className="text-sm font-bold text-blue-800 mb-2">Định dạng yêu cầu:</h4>
+                  <ul className="text-[10px] text-blue-700 space-y-1 list-disc list-inside">
+                    {importType === 'reports' ? (
+                      <>
+                        <li>Tiêu đề: <code className="bg-blue-100 px-1 rounded">latitude</code>, <code className="bg-blue-100 px-1 rounded">longitude</code>, <code className="bg-blue-100 px-1 rounded">issueType</code>, <code className="bg-blue-100 px-1 rounded">description</code>, <code className="bg-blue-100 px-1 rounded">priority</code></li>
+                        <li>Tọa độ: Đà Nẵng (16.0), Quảng Nam (15.8).</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>Tiêu đề: <code className="bg-blue-100 px-1 rounded">username</code> (hoặc email), <code className="bg-blue-100 px-1 rounded">password</code>, <code className="bg-blue-100 px-1 rounded">role</code>, <code className="bg-blue-100 px-1 rounded">area</code>, <code className="bg-blue-100 px-1 rounded">organizationName</code></li>
+                        <li>Roles: admin, environment_department, department_manager, citizen.</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+                <textarea
+                  value={pastedData}
+                  onChange={(e) => setPastedData(e.target.value)}
+                  placeholder="Sao chép từ Excel và dán vào đây..."
+                  className="w-full h-48 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none font-mono text-xs resize-none bg-slate-50"
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -156,7 +264,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
                 </button>
               </div>
               <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-xs text-left">
                   <thead className="bg-slate-50 text-slate-600 font-bold">
                     <tr>
                       {headers.map(h => (
@@ -213,7 +321,7 @@ const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose, onIm
               ) : (
                 <>
                   <CheckIcon className="w-5 h-5" />
-                  <span>Xác nhận nhập dữ liệu</span>
+                  <span>Xác nhận nhập {importType === 'reports' ? 'Báo cáo' : 'Người dùng'}</span>
                 </>
               )}
             </button>

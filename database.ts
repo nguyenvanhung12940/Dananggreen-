@@ -13,7 +13,8 @@ export const initDb = () => {
       role TEXT, -- 'admin', 'district_manager', 'ward_manager', 'school_manager', 'department_manager', 'environment_department'
       area TEXT, -- e.g., 'Hai Chau', 'Son Tra', 'Hoa Vang'
       organizationName TEXT,
-      status TEXT DEFAULT 'active'
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -23,6 +24,9 @@ export const initDb = () => {
   } catch (e) {}
   try {
     db.exec("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'");
+  } catch (e) {}
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
   } catch (e) {}
 
   // Reports table
@@ -41,36 +45,54 @@ export const initDb = () => {
       isIssuePresent INTEGER, -- boolean stored as 0/1
       status TEXT,
       timestamp TEXT,
-      area TEXT
+      area TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  try {
+    db.exec("ALTER TABLE reports ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+  } catch (e) {}
 
   // Seed users if empty
   const stmt = db.prepare('SELECT count(*) as count FROM users');
   const result = stmt.get() as { count: number };
   
   if (result.count === 0) {
-    const insert = db.prepare('INSERT INTO users (username, password, role, area) VALUES (?, ?, ?, ?)');
-    const hashedPassword = bcrypt.hashSync('password123', 10);
+    const insert = db.prepare('INSERT INTO users (username, password, role, area, organizationName) VALUES (?, ?, ?, ?, ?)');
+    const hashedPassword = bcrypt.hashSync('123456', 10);
     
-    insert.run('admin', hashedPassword, 'admin', 'All');
-    insert.run('quantrivien', hashedPassword, 'admin', 'All');
-    insert.run('quản trị viên', hashedPassword, 'admin', 'All');
-    insert.run('haichau_manager', hashedPassword, 'district_manager', 'Hải Châu');
-    insert.run('sontra_manager', hashedPassword, 'district_manager', 'Sơn Trà');
-    insert.run('thanhkhe_manager', hashedPassword, 'district_manager', 'Thanh Khê');
+    // Requested Official Accounts
+    insert.run('admin@dananggreen.vn', hashedPassword, 'environment_department', 'All', 'Hệ thống Đà Nẵng Green');
+    insert.run('quanly@dananggreen.vn', hashedPassword, 'department_manager', 'Hải Châu', 'Ban Quản lý Môi trường');
+    insert.run('nguoidan1@gmail.com', hashedPassword, 'citizen', 'Hải Châu', 'Người dân');
+    insert.run('nguoidan2@gmail.com', hashedPassword, 'citizen', 'Thanh Khê', 'Người dân');
+
+    // Legacy/Default Accounts
+    insert.run('admin', hashedPassword, 'admin', 'All', 'Quản trị viên');
+    insert.run('quantrivien', hashedPassword, 'admin', 'All', 'Quản trị viên');
+    insert.run('quản trị viên', hashedPassword, 'admin', 'All', 'Quản trị viên');
     console.log('Database seeded with initial users.');
   } else {
-    // Ensure 'quản trị viên' exists for users who already have a database
+    // Ensure the new requested accounts exist even if DB already has data
     const checkUser = db.prepare('SELECT count(*) as count FROM users WHERE username = ?');
-    const adminExists = checkUser.get('quản trị viên') as { count: number };
-    if (adminExists.count === 0) {
-      const insert = db.prepare('INSERT INTO users (username, password, role, area) VALUES (?, ?, ?, ?)');
-      const hashedPassword = bcrypt.hashSync('password123', 10);
-      insert.run('quantrivien', hashedPassword, 'admin', 'All');
-      insert.run('quản trị viên', hashedPassword, 'admin', 'All');
-      console.log('Added Vietnamese admin aliases to existing database.');
-    }
+    const insert = db.prepare('INSERT INTO users (username, password, role, area, organizationName) VALUES (?, ?, ?, ?, ?)');
+    const hashedPassword = bcrypt.hashSync('123456', 10);
+
+    const newUsers = [
+      { u: 'admin@dananggreen.vn', r: 'environment_department', a: 'All', o: 'Hệ thống Đà Nẵng Green' },
+      { u: 'quanly@dananggreen.vn', r: 'department_manager', a: 'Hải Châu', o: 'Ban Quản lý Môi trường' },
+      { u: 'nguoidan1@gmail.com', r: 'citizen', a: 'Hải Châu', o: 'Người dân' },
+      { u: 'nguoidan2@gmail.com', r: 'citizen', a: 'Thanh Khê', o: 'Người dân' }
+    ];
+
+    newUsers.forEach(user => {
+      const exists = checkUser.get(user.u) as { count: number };
+      if (exists.count === 0) {
+        insert.run(user.u, hashedPassword, user.r, user.a, user.o);
+        console.log(`Added requested account: ${user.u}`);
+      }
+    });
   }
 };
 

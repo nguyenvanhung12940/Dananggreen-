@@ -211,6 +211,76 @@ async function startServer() {
 
 let supabaseTableErrorLogged = false;
 
+  // Auth Bulk Register
+  app.post('/api/auth/bulk-register', async (req, res) => {
+    try {
+      const { users } = req.body;
+      if (!Array.isArray(users)) {
+        return res.status(400).json({ message: 'Dữ liệu không hợp lệ. Phải là một mảng người dùng.' });
+      }
+
+      console.log(`Bulk registering ${users.length} users...`);
+      const results = { success: 0, failed: 0 };
+
+      for (const user of users) {
+        const { username, password, role, area, organizationName } = user;
+        
+        if (!username || !password || !role) {
+          results.failed++;
+          continue;
+        }
+
+        const hashedPassword = bcrypt.hashSync(password, 10);
+
+        // Try Supabase first
+        if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+          try {
+            const { data: existingUser } = await supabase.from('users').select('username').eq('username', username).single();
+            if (!existingUser) {
+              const { error } = await supabase.from('users').insert([{
+                username,
+                password: hashedPassword,
+                role,
+                area,
+                organizationName,
+                status: 'active'
+              }]);
+              if (!error) {
+                results.success++;
+                continue;
+              }
+            } else {
+              results.failed++; // Already exists
+              continue;
+            }
+          } catch (err) {}
+        }
+
+        // Fallback to SQLite
+        try {
+          const existingUser = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+          if (!existingUser) {
+            const stmt = db.prepare(`
+              INSERT INTO users (username, password, role, area, organizationName, status)
+              VALUES (?, ?, ?, ?, ?, ?)
+            `);
+            stmt.run(username, hashedPassword, role, area, organizationName, 'active');
+            results.success++;
+          } else {
+            results.failed++;
+          }
+        } catch (err) {
+          results.failed++;
+        }
+      }
+
+      res.json({ message: `Đã nhập thành công ${results.success} người dùng. Thất bại: ${results.failed}`, results });
+    } catch (error) {
+      console.error('Bulk registration error:', error);
+      res.status(500).json({ message: 'Lỗi hệ thống khi nhập người dùng hàng loạt' });
+    }
+  });
+
   // Get Reports
   app.get('/api/reports', async (req, res) => {
     try {
