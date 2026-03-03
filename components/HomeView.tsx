@@ -135,55 +135,55 @@ const HomeView: React.FC<HomeViewProps> = ({ reports, onNavigateToMap, onStartNe
             {/* Hành động chính (Buttons) */}
             <section aria-label="Các hành động chính">
                <h3 className="text-lg font-bold text-slate-800 mb-4 px-1">Truy cập nhanh</h3>
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <button onClick={onStartNewReport} className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl shadow-lg shadow-teal-200 hover:shadow-teal-300 transition-all duration-300 hover:-translate-y-1">
-                  <div className="p-3 bg-white/20 rounded-full mb-3 text-white group-hover:scale-110 transition-transform">
-                    <DocumentPlusIcon className="w-8 h-8" />
-                  </div>
-                  <span className="font-bold text-white text-sm">Báo cáo mới</span>
-                </button>
+               <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                 <button onClick={onStartNewReport} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl shadow-lg shadow-teal-200 hover:shadow-teal-300 transition-all duration-300 hover:-translate-y-1">
+                   <div className="p-2 sm:p-3 bg-white/20 rounded-full mb-2 sm:mb-3 text-white group-hover:scale-110 transition-transform">
+                     <DocumentPlusIcon className="w-6 h-6 sm:w-8 h-8" />
+                   </div>
+                   <span className="font-bold text-white text-xs sm:text-sm">Báo cáo mới</span>
+                 </button>
 
-                <button onClick={onNavigateToMap} className="group flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-                  <div className="p-3 bg-slate-50 rounded-full mb-3 text-slate-600 group-hover:bg-slate-100 transition-colors">
-                     <MapIcon className="w-8 h-8" />
-                  </div>
-                  <span className="font-semibold text-slate-700 text-sm">Bản đồ Sự cố</span>
-                </button>
+                 <button onClick={onNavigateToMap} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                   <div className="p-2 sm:p-3 bg-slate-50 rounded-full mb-2 sm:mb-3 text-slate-600 group-hover:bg-slate-100 transition-colors">
+                      <MapIcon className="w-6 h-6 sm:w-8 h-8" />
+                   </div>
+                   <span className="font-semibold text-slate-700 text-xs sm:text-sm">Bản đồ Sự cố</span>
+                 </button>
 
-                <button onClick={onNavigateToEnvironmentalMap} className="group flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-                  <div className="p-3 bg-indigo-50 rounded-full mb-3 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-                     <GlobeIcon className="w-8 h-8" />
-                  </div>
-                  <span className="font-semibold text-slate-700 text-sm text-center">Bản đồ Xanh</span>
-                </button>
+                 <button onClick={onNavigateToEnvironmentalMap} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                   <div className="p-2 sm:p-3 bg-indigo-50 rounded-full mb-2 sm:mb-3 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                      <GlobeIcon className="w-6 h-6 sm:w-8 h-8" />
+                   </div>
+                   <span className="font-semibold text-slate-700 text-xs sm:text-sm text-center">Bản đồ Xanh</span>
+                 </button>
 
-                <button onClick={onNavigateToSOS} className="group flex flex-col items-center justify-center p-6 bg-red-50 border border-red-100 rounded-2xl shadow-sm hover:shadow-red-100 transition-all duration-300 hover:-translate-y-1">
-                  <div className="p-3 bg-red-100 rounded-full mb-3 text-red-600 group-hover:bg-red-200 transition-colors animate-pulse">
-                     <SOSIcon className="w-8 h-8" />
-                  </div>
-                  <span className="font-bold text-red-700 text-sm">SOS</span>
-                </button>
+                 <button onClick={onNavigateToSOS} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-red-50 border border-red-100 rounded-2xl shadow-sm hover:shadow-red-100 transition-all duration-300 hover:-translate-y-1">
+                   <div className="p-2 sm:p-3 bg-red-100 rounded-full mb-2 sm:mb-3 text-red-600 group-hover:bg-red-200 transition-colors animate-pulse">
+                      <SOSIcon className="w-6 h-6 sm:w-8 h-8" />
+                   </div>
+                   <span className="font-bold text-red-700 text-xs sm:text-sm">SOS</span>
+                 </button>
                </div>
             </section>
-            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+            <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
                  <span className="w-1.5 h-6 bg-teal-500 rounded-full mr-3"></span>
                  Tổng quan cộng đồng
               </h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="relative overflow-hidden rounded-2xl bg-blue-50 p-6 transition-all hover:bg-blue-100/80">
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                <div className="relative overflow-hidden rounded-2xl bg-blue-50 p-4 sm:p-6 transition-all hover:bg-blue-100/80">
                   <div className="relative z-10">
-                    <p className="text-sm font-medium text-blue-800 mb-1">Tổng báo cáo</p>
-                    <p className="text-4xl font-extrabold text-blue-600 tracking-tight">{totalReports}</p>
+                    <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">Tổng báo cáo</p>
+                    <p className="text-3xl sm:text-4xl font-extrabold text-blue-600 tracking-tight">{totalReports}</p>
                   </div>
-                   <ClipboardListIcon className="absolute -right-4 -bottom-4 w-24 h-24 text-blue-200 opacity-50 rotate-12" />
+                   <ClipboardListIcon className="absolute -right-4 -bottom-4 w-20 h-20 sm:w-24 h-24 text-blue-200 opacity-50 rotate-12" />
                 </div>
-                <div className="relative overflow-hidden rounded-2xl bg-green-50 p-6 transition-all hover:bg-green-100/80">
+                <div className="relative overflow-hidden rounded-2xl bg-green-50 p-4 sm:p-6 transition-all hover:bg-green-100/80">
                   <div className="relative z-10">
-                    <p className="text-sm font-medium text-green-800 mb-1">Đã xử lý</p>
-                    <p className="text-4xl font-extrabold text-green-600 tracking-tight">{resolvedReports}</p>
+                    <p className="text-xs sm:text-sm font-medium text-green-800 mb-1">Đã xử lý</p>
+                    <p className="text-3xl sm:text-4xl font-extrabold text-green-600 tracking-tight">{resolvedReports}</p>
                   </div>
-                  <CheckBadgeIcon className="absolute -right-4 -bottom-4 w-24 h-24 text-green-200 opacity-50 rotate-12"/>
+                  <CheckBadgeIcon className="absolute -right-4 -bottom-4 w-20 h-20 sm:w-24 h-24 text-green-200 opacity-50 rotate-12"/>
                 </div>
               </div>
             </section>

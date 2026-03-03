@@ -287,27 +287,27 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
       <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
          <button
             onClick={onNavigateHome}
-            className="bg-white/80 backdrop-blur-sm text-gray-700 rounded-full p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="bg-white/80 backdrop-blur-sm text-gray-700 rounded-full p-3 sm:p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-teal-500"
             aria-label="Về trang chủ"
           >
-            <HomeIcon className="w-6 h-6" />
+            <HomeIcon className="w-5 h-5 sm:w-6 h-6" />
           </button>
           <button
             onClick={handleToggleLayer}
-            className="bg-white/80 backdrop-blur-sm text-gray-700 rounded-full p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="bg-white/80 backdrop-blur-sm text-gray-700 rounded-full p-3 sm:p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-teal-500"
             aria-label="Thay đổi lớp bản đồ"
             title={`Bản đồ: ${currentLayerKey}`}
           >
-            <LayersIcon className="w-6 h-6" />
+            <LayersIcon className="w-5 h-5 sm:w-6 h-6" />
           </button>
           {userLocation && (
             <button
               onClick={handleCenterOnUser}
-              className="bg-white/80 backdrop-blur-sm text-blue-600 rounded-full p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-white/80 backdrop-blur-sm text-blue-600 rounded-full p-3 sm:p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Định vị tôi"
               title="Vị trí của tôi"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 sm:w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25s-7.5-4.108-7.5-11.25a7.5 7.5 0 1115 0z" />
               </svg>
@@ -315,27 +315,27 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
           )}
       </div>
       
-      <div className="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2">
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2 max-w-[calc(100%-80px)]">
         <MapSearch onSearch={handleSearch} suggestionsData={suggestionsData} />
         
-        {/* Bảng điều khiển bộ lọc */}
-        <div className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-lg flex flex-col space-y-1">
+        {/* Bảng điều khiển bộ lọc - Chuyển thành hàng ngang trên mobile cực nhỏ nếu cần, nhưng dọc vẫn ổn nếu gọn */}
+        <div className="bg-white/80 backdrop-blur-sm p-1.5 sm:p-2 rounded-full shadow-lg flex flex-col space-y-1">
             {filterCategories.map((cat) => (
                 <button
                     key={cat.name}
                     onClick={() => setActiveFilter(cat.issueType)}
-                    className={`flex items-center space-x-2 w-full text-left p-2 rounded-full transition-all duration-200 ${activeFilter === cat.issueType ? 'bg-teal-500 text-white shadow' : 'text-gray-600 hover:bg-gray-200/50'}`}
+                    className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 ${activeFilter === cat.issueType ? 'bg-teal-500 text-white shadow-md scale-105' : 'text-gray-600 hover:bg-gray-200/50'}`}
                     title={cat.name}
                     aria-label={`Lọc theo ${cat.name}`}
                 >
-                    <div className="w-6 text-center">{cat.icon}</div>
+                    {cat.icon}
                 </button>
             ))}
         </div>
       </div>
 
 
-      <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md z-10 hidden sm:block">
+      <div className="absolute bottom-20 left-4 bg-white/80 backdrop-blur-sm p-3 rounded-xl shadow-md z-10 hidden md:block">
         <h4 className="font-bold text-sm mb-2 text-gray-700">Chú giải</h4>
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
@@ -353,15 +353,15 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
         </div>
       </div>
       
-       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center">
+       <div className="absolute bottom-20 right-4 z-10 flex flex-col items-center">
            <button
               onClick={onStartNewReport}
-              className="bg-teal-600 text-white rounded-full p-5 shadow-2xl hover:bg-teal-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-teal-500/50 flex items-center justify-center mb-2"
+              className="bg-teal-600 text-white rounded-full p-4 sm:p-5 shadow-2xl hover:bg-teal-700 transition-transform transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-teal-500/50 flex items-center justify-center mb-2"
               aria-label="Báo cáo sự cố mới"
             >
-              <AddIcon className="w-8 h-8" />
+              <AddIcon className="w-6 h-6 sm:w-8 h-8" />
             </button>
-            <span className="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-teal-700 shadow-sm border border-teal-100 uppercase tracking-wider">Báo cáo nhanh</span>
+            <span className="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-teal-700 shadow-sm border border-teal-100 uppercase tracking-wider">Báo cáo</span>
        </div>
     </div>
   );

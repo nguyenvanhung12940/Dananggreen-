@@ -19,6 +19,7 @@ import SOSView from './components/SOSView';
 import OfflineReportsModal from './components/OfflineReportsModal';
 import LoginView from './components/LoginView';
 import DashboardView from './components/DashboardView';
+import BottomNav from './components/BottomNav';
 import { SOSIcon } from './components/icons/SOSIcon';
 import { CloudIcon } from './components/icons/CloudIcon';
 
@@ -828,90 +829,99 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-50 via-slate-50 to-white selection:bg-teal-100 selection:text-teal-900">
        <ToastContainer toasts={toasts} onDismiss={removeToast} />
-      <header className="bg-white/80 backdrop-blur-md shadow-sm z-20 sticky top-0 border-b border-slate-100 transition-all duration-300">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setView('home')}>
-             <div className="transform transition-transform group-hover:scale-105 duration-300">
-                <LogoIcon className="w-10 h-10 drop-shadow-sm" />
-             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-teal-700 hidden sm:block">
-              DA NANG <span className="text-teal-600">GREEN</span>
-            </h1>
-          </div>
-          
-           <div className="flex items-center space-x-3 sm:space-x-4">
-              {/* Offline Indicator */}
-              {!isOnline && (
-                <button 
-                  onClick={() => setIsOfflineModalOpen(true)}
-                  className="flex items-center space-x-1 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full text-xs font-bold animate-pulse hover:bg-amber-200 transition-colors"
-                >
-                  <CloudIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Offline ({pendingReportsCount})</span>
-                </button>
-              )}
-              {isOnline && pendingReportsCount > 0 && (
-                 <div className="flex items-center space-x-1 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-xs font-bold">
-                  <CloudIcon className="w-4 h-4 animate-bounce" />
-                  <span className="hidden sm:inline">Đang đồng bộ...</span>
-                </div>
-              )}
-              <button
-                onClick={() => setView('sos')}
-                className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center animate-pulse hover:bg-red-700 transition-all shadow-lg hover:shadow-red-200 transform hover:scale-105"
-                title="SOS"
-              >
-                <SOSIcon className="w-6 h-6" />
-              </button>
-
-              {user ? (
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setView('dashboard')}
-                    className="text-sm font-bold text-slate-700 hover:text-teal-600 transition-colors"
-                  >
-                    Dashboard
-                  </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors"
-                  >
-                    Đăng xuất
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => setView('login')}
-                  className="text-sm font-bold text-slate-700 hover:text-teal-600 transition-colors bg-slate-100 px-3 py-1.5 rounded-full"
-                >
-                  Cán bộ
-                </button>
-              )}
-
-              {/* Auto Monitoring Toggle */}
-              <button
-                onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
-                className={`hidden md:flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  isAutoMonitoring 
-                    ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 animate-pulse' 
-                    : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
-                }`}
-                title="Tự động giám sát và cập nhật báo cáo mỗi 10s"
-              >
-                <div className={`w-2 h-2 rounded-full mr-2 ${isAutoMonitoring ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
-                {isAutoMonitoring ? 'Đang Giám sát (10s)' : 'Bật Giám sát'}
-              </button>
-
-               <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 text-amber-900 font-bold px-4 py-1.5 rounded-full text-sm shadow-sm">
-                  <TrophyIcon className="w-5 h-5 text-amber-500" />
-                  <span className="hidden sm:inline">Điểm:</span>
-                  <span>{userPoints}</span>
-              </div>
-           </div>
-        </div>
-      </header>
       
-      <main className="flex-grow relative flex flex-col">
+      {/* Header - Ẩn trên mobile khi ở chế độ xem bản đồ */}
+      {!(view === 'map' || view === 'environmentalMap') && (
+        <header className="bg-white/80 backdrop-blur-md shadow-sm z-20 sticky top-0 border-b border-slate-100 transition-all duration-300">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setView('home')}>
+               <div className="transform transition-transform group-hover:scale-105 duration-300">
+                  <LogoIcon className="w-10 h-10 drop-shadow-sm" />
+               </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-teal-700">
+                DA NANG <span className="text-teal-600">GREEN</span>
+              </h1>
+            </div>
+            
+             <div className="flex items-center space-x-2 sm:space-x-4">
+                {/* Offline Indicator */}
+                {!isOnline && (
+                  <button 
+                    onClick={() => setIsOfflineModalOpen(true)}
+                    className="flex items-center space-x-1 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold animate-pulse hover:bg-amber-200 transition-colors"
+                  >
+                    <CloudIcon className="w-4 h-4" />
+                    <span className="hidden xs:inline">Offline ({pendingReportsCount})</span>
+                  </button>
+                )}
+                {isOnline && pendingReportsCount > 0 && (
+                   <div className="flex items-center space-x-1 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold">
+                    <CloudIcon className="w-4 h-4 animate-bounce" />
+                    <span className="hidden xs:inline">Đang đồng bộ...</span>
+                  </div>
+                )}
+
+                {/* SOS Button - Ẩn trên mobile vì đã có BottomNav */}
+                <button
+                  onClick={() => setView('sos')}
+                  className="hidden md:flex w-10 h-10 bg-red-600 text-white rounded-full items-center justify-center animate-pulse hover:bg-red-700 transition-all shadow-lg hover:shadow-red-200 transform hover:scale-105"
+                  title="SOS"
+                >
+                  <SOSIcon className="w-6 h-6" />
+                </button>
+
+                {/* Auth Controls - Ẩn trên mobile vì đã có BottomNav */}
+                <div className="hidden md:flex items-center space-x-3">
+                  {user ? (
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setView('dashboard')}
+                        className="text-sm font-bold text-slate-700 hover:text-teal-600 transition-colors"
+                      >
+                        Dashboard
+                      </button>
+                      <button 
+                        onClick={handleLogout}
+                        className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors"
+                      >
+                        Đăng xuất
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setView('login')}
+                      className="text-sm font-bold text-slate-700 hover:text-teal-600 transition-colors bg-slate-100 px-3 py-1.5 rounded-full"
+                    >
+                      Cán bộ
+                    </button>
+                  )}
+                </div>
+
+                {/* Auto Monitoring Toggle */}
+                <button
+                  onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
+                  className={`hidden lg:flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                    isAutoMonitoring 
+                      ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 animate-pulse' 
+                      : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                  }`}
+                  title="Tự động giám sát và cập nhật báo cáo mỗi 10s"
+                >
+                  <div className={`w-2 h-2 rounded-full mr-2 ${isAutoMonitoring ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
+                  {isAutoMonitoring ? 'Giám sát: Bật' : 'Giám sát: Tắt'}
+                </button>
+
+                <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 text-amber-900 font-bold px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm shadow-sm">
+                    <TrophyIcon className="w-4 h-4 sm:w-5 h-5 text-amber-500" />
+                    <span className="hidden xs:inline">Điểm:</span>
+                    <span>{userPoints}</span>
+                </div>
+              </div>
+          </div>
+        </header>
+      )}
+      
+      <main className={`flex-grow relative flex flex-col ${view === 'map' || view === 'environmentalMap' ? 'h-[calc(100vh-64px)] md:h-screen' : ''} pb-16 md:pb-0`}>
          {renderContent()}
         
         {selectedReport && (
@@ -936,6 +946,13 @@ const App: React.FC = () => {
           onReportsChanged={updatePendingReportsCount}
         />
       </main>
+
+      {/* Bottom Navigation for Mobile */}
+      <BottomNav 
+        activeView={view} 
+        onNavigate={setView} 
+        isLoggedIn={!!user} 
+      />
 
       {/* Trợ lý AI nổi */}
       <FloatingAIAssistant
