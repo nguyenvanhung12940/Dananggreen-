@@ -3,12 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { EnvironmentalReport } from '../types';
+import BulkImportModal from './BulkImportModal';
+import { EnvironmentalReport, EnvironmentalNotification } from '../types';
+import { BellIcon } from './icons/BellIcon';
 import { TrophyIcon } from './icons/TrophyIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { FileUpIcon } from './icons/FileUpIcon';
 import { XCircleIcon as AlertCircleIcon } from './icons/XCircleIcon';
-import BulkImportModal from './BulkImportModal';
+import { formatDistanceToNow } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 interface DashboardStats {
   total: number;
@@ -23,9 +26,18 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 interface DashboardViewProps {
   user?: any;
   reports: EnvironmentalReport[];
+  notifications?: EnvironmentalNotification[];
+  onMarkNotificationAsRead?: (id: number) => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ 
+  user, 
+  reports, 
+  notifications = [], 
+  onMarkNotificationAsRead,
+  onSelectReport
+}) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'looker'>('overview');
@@ -92,45 +104,45 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
   return (
     <div className="p-4 sm:p-6 space-y-6 bg-slate-50 min-h-screen pb-24 md:pb-6">
       {/* Profile Header Card */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-50 rounded-full -ml-12 -mb-12 opacity-50"></div>
+      <div className="glass-card p-6 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-brand-50 rounded-full -mr-24 -mt-24 opacity-60 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-50 rounded-full -ml-16 -mb-16 opacity-60 blur-3xl"></div>
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-100">
-              <span className="text-2xl font-bold uppercase">{(user?.organizationName || user?.username || 'U').charAt(0)}</span>
+          <div className="flex items-center space-x-5">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-xl shadow-brand-100 transform hover:rotate-3 transition-transform">
+              <span className="text-3xl font-black uppercase">{(user?.organizationName || user?.username || 'U').charAt(0)}</span>
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-800">{user?.organizationName || user?.username || 'Người dùng'}</h2>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-bold rounded-full border border-teal-100 uppercase">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{user?.organizationName || user?.username || 'Người dùng'}</h2>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className="px-3 py-1 bg-brand-50 text-brand-700 text-[10px] font-black rounded-full border border-brand-100 uppercase tracking-wider">
                   {user?.role === 'admin' ? 'Quản trị viên' : user?.role === 'environment_department' ? 'Cán bộ Môi trường' : 'Công dân Xanh'}
                 </span>
-                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full border border-slate-200 uppercase">
+                <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded-full border border-slate-200 uppercase tracking-wider">
                   Khu vực: {user?.area || 'Toàn thành phố'}
                 </span>
               </div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Điểm đóng góp</p>
-              <p className="text-2xl font-black text-teal-600">1,250</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Điểm đóng góp</p>
+              <p className="text-3xl font-black text-brand-600 tabular-nums">1,250</p>
             </div>
-            <div className="h-10 w-[1px] bg-slate-100 mx-2 hidden sm:block"></div>
-            <div className="flex bg-slate-100 p-1 rounded-xl">
+            <div className="h-12 w-[1px] bg-slate-200 mx-2 hidden sm:block"></div>
+            <div className="flex bg-slate-100 p-1 rounded-2xl">
               <button 
                 onClick={() => setActiveTab('overview')}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-5 py-2.5 text-xs font-black rounded-xl transition-all ${activeTab === 'overview' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Tổng quan
               </button>
               {isAdmin && (
                 <button 
                   onClick={() => setActiveTab('looker')}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'looker' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-5 py-2.5 text-xs font-black rounded-xl transition-all ${activeTab === 'looker' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Phân tích
                 </button>
@@ -139,7 +151,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
             {isAdmin && (
               <button 
                 onClick={() => setIsImportModalOpen(true)}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all shadow-sm"
+                className="p-3 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm hover:shadow-md active:scale-95"
                 title="Nhập dữ liệu Excel"
               >
                   <FileUpIcon className="w-5 h-5" />
@@ -148,6 +160,62 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
           </div>
         </div>
       </div>
+
+      {/* Notifications Section for Authorities */}
+      {user && user.role !== 'citizen' && notifications.length > 0 && (
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-black text-slate-900 flex items-center text-xs uppercase tracking-widest">
+              <BellIcon className="w-5 h-5 text-emerald-500 mr-3" />
+              Thông báo khẩn cấp & Sự cố mới
+            </h3>
+            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+              {notifications.filter(n => !n.isRead).length} MỚI
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {notifications.slice(0, 6).map((notification) => (
+              <div 
+                key={notification.id}
+                onClick={() => onSelectReport?.(notification.reportId)}
+                className={`p-5 rounded-3xl border transition-all cursor-pointer hover:shadow-xl hover:shadow-emerald-50/50 ${
+                  !notification.isRead 
+                    ? 'bg-emerald-50/30 border-emerald-200' 
+                    : 'bg-white border-slate-100'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <span className={`text-[9px] px-2.5 py-1 rounded-lg font-black uppercase tracking-wider shadow-sm ${
+                    notification.priority === 'Cao' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
+                  }`}>
+                    {notification.priority || 'MỚI'}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: vi })}
+                  </span>
+                </div>
+                <p className={`text-xs leading-relaxed line-clamp-2 mb-4 ${!notification.isRead ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
+                  {notification.message}
+                </p>
+                <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{notification.area}</span>
+                  {!notification.isRead && onMarkNotificationAsRead && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkNotificationAsRead(notification.id);
+                      }}
+                      className="text-[10px] text-emerald-600 font-black hover:text-emerald-700 transition-colors"
+                    >
+                      ĐÁNH DẤU ĐÃ ĐỌC
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {healthStatus?.supabase === 'error' && isAdmin && (
         <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start space-x-3 text-red-700">
@@ -185,39 +253,39 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
-                <FileUpIcon className="w-5 h-5" />
+            <div className="glass-card p-5 flex flex-col items-center text-center group hover:bg-brand-50/10 transition-colors">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm">
+                <FileUpIcon className="w-6 h-6" />
               </div>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Tổng báo cáo</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">{stats.total}</p>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Tổng báo cáo</p>
+              <p className="text-3xl font-black text-slate-900 mt-1 tabular-nums">{stats.total}</p>
             </div>
-            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-              <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-3">
-                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+            <div className="glass-card p-5 flex flex-col items-center text-center group hover:bg-amber-50/10 transition-colors">
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm">
+                <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
               </div>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Đang xử lý</p>
-              <p className="text-2xl font-black text-amber-500 mt-1">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Đang xử lý</p>
+              <p className="text-3xl font-black text-amber-500 mt-1 tabular-nums">
                 {stats.byStatus.find(s => s.status === 'Đang xử lý')?.count || 0}
               </p>
             </div>
-            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-              <div className="w-10 h-10 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-3">
-                <AlertCircleIcon className="w-5 h-5" />
+            <div className="glass-card p-5 flex flex-col items-center text-center group hover:bg-red-50/10 transition-colors">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm">
+                <AlertCircleIcon className="w-6 h-6" />
               </div>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Ưu tiên Cao</p>
-              <p className="text-2xl font-black text-red-500 mt-1">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ưu tiên Cao</p>
+              <p className="text-3xl font-black text-red-500 mt-1 tabular-nums">
                 {stats.byPriority.find(p => p.priority === 'Cao')?.count || 0}
               </p>
             </div>
-            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-              <div className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-3">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <div className="glass-card p-5 flex flex-col items-center text-center group hover:bg-emerald-50/10 transition-colors">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Đã hoàn thành</p>
-              <p className="text-2xl font-black text-green-500 mt-1">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Đã hoàn thành</p>
+              <p className="text-3xl font-black text-emerald-500 mt-1 tabular-nums">
                 {stats.byStatus.find(s => s.status === 'Đã xử lý')?.count || 0}
               </p>
             </div>
@@ -225,123 +293,134 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-80">
-              <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-                <span className="w-2 h-2 bg-teal-500 rounded-full mr-2"></span>
+            <div className="glass-card p-6 h-96">
+              <h3 className="font-black text-slate-900 mb-8 flex items-center text-xs uppercase tracking-widest">
+                <span className="w-1.5 h-5 bg-brand-500 rounded-full mr-3"></span>
                 Phân bố theo Khu vực
               </h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={(stats as any).byRegion}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
-                    cursor={{ fill: '#f8fafc' }}
-                  />
-                  <Bar dataKey="count" fill="#0d9488" radius={[6, 6, 0, 0]} barSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-[calc(100%-3rem)]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={(stats as any).byRegion}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 700 }}
+                      cursor={{ fill: '#f8fafc' }}
+                    />
+                    <Bar dataKey="count" fill="#0d9488" radius={[8, 8, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-80">
-              <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+            <div className="glass-card p-6 h-96">
+              <h3 className="font-black text-slate-900 mb-8 flex items-center text-xs uppercase tracking-widest">
+                <span className="w-1.5 h-5 bg-blue-500 rounded-full mr-3"></span>
                 Trạng thái Xử lý
               </h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats.byStatus}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={8}
-                    dataKey="count"
-                    stroke="none"
-                  >
-                    {stats.byStatus.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="h-[calc(100%-3rem)]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats.byStatus}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={10}
+                      dataKey="count"
+                      stroke="none"
+                    >
+                      {stats.byStatus.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 700 }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 800, paddingTop: '20px', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
           {/* Leaderboard & Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Leaderboard */}
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 lg:col-span-1">
-                  <div className="flex items-center justify-between mb-6">
-                      <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider">
-                          <TrophyIcon className="w-5 h-5 text-yellow-500 mr-2" />
+              <div className="glass-card p-6 lg:col-span-1">
+                  <div className="flex items-center justify-between mb-8">
+                      <h3 className="font-black text-slate-900 flex items-center text-xs uppercase tracking-widest">
+                          <TrophyIcon className="w-5 h-5 text-yellow-500 mr-3" />
                           Bảng Xếp Hạng
                       </h3>
-                      <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">Tháng 3</span>
+                      <span className="text-[10px] font-black text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-100">THÁNG 3</span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                       {leaderboard.map((user, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all group">
-                              <div className="flex items-center space-x-3">
-                                  <div className={`w-6 h-6 flex items-center justify-center rounded-full font-black text-[10px] ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'}`}>
+                          <div key={index} className="flex items-center justify-between p-3.5 hover:bg-slate-50/50 rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-slate-100">
+                              <div className="flex items-center space-x-4">
+                                  <div className={`w-7 h-7 flex items-center justify-center rounded-xl font-black text-xs ${index === 0 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-100' : index === 1 ? 'bg-slate-300 text-white shadow-lg shadow-slate-100' : index === 2 ? 'bg-orange-400 text-white shadow-lg shadow-orange-100' : 'bg-slate-100 text-slate-400'}`}>
                                       {index + 1}
                                   </div>
-                                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition-transform" />
+                                  <div className="relative">
+                                    <img src={user.avatar} alt={user.name} className="w-11 h-11 rounded-2xl border-2 border-white shadow-sm group-hover:scale-110 transition-transform object-cover" />
+                                    {index < 3 && (
+                                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                        <span className="text-[8px]">👑</span>
+                                      </div>
+                                    )}
+                                  </div>
                                   <div>
-                                      <p className="font-bold text-slate-800 text-xs">{user.name}</p>
-                                      <p className="text-[10px] text-slate-500">{user.rank}</p>
+                                      <p className="font-black text-slate-900 text-xs">{user.name}</p>
+                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{user.rank}</p>
                                   </div>
                               </div>
                               <div className="text-right">
-                                  <p className="font-black text-teal-600 text-sm">{user.points}</p>
-                                  <p className="text-[10px] text-slate-400">điểm</p>
+                                  <p className="font-black text-brand-600 text-sm tabular-nums">{user.points}</p>
+                                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">điểm</p>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <button className="w-full mt-6 py-2.5 text-xs font-bold text-teal-600 bg-teal-50/50 hover:bg-teal-50 rounded-2xl transition-colors">
+                  <button className="w-full mt-8 py-3 text-[10px] font-black text-brand-600 bg-brand-50/50 hover:bg-brand-50 rounded-2xl transition-all uppercase tracking-widest border border-brand-100/50">
                       Xem tất cả cộng đồng
                   </button>
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 lg:col-span-2">
-                   <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-                      <UsersIcon className="w-5 h-5 text-blue-500 mr-2" />
+              <div className="glass-card p-6 lg:col-span-2">
+                   <h3 className="font-black text-slate-900 mb-8 flex items-center text-xs uppercase tracking-widest">
+                      <UsersIcon className="w-5 h-5 text-blue-500 mr-3" />
                       Hoạt động Gần đây
                    </h3>
-                   <div className="space-y-2">
+                   <div className="space-y-3">
                       {filteredReports.slice(0, 4).map((report) => (
-                          <div key={report.id} className="flex items-center space-x-4 p-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100">
+                          <div key={report.id} className="flex items-center space-x-5 p-4 rounded-3xl hover:bg-slate-50/50 transition-all border border-transparent hover:border-slate-100 group cursor-pointer">
                               <div className="relative flex-shrink-0">
                                   <img 
                                     src={report.mediaUrl} 
                                     alt="Report" 
-                                    className="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"
+                                    className="w-16 h-16 rounded-2xl object-cover border border-slate-100 shadow-sm group-hover:scale-105 transition-transform"
                                     onError={(e) => {(e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image'}}
                                   />
-                                  <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold ${
+                                  <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-xl border-2 border-white flex items-center justify-center text-[10px] text-white font-black shadow-md ${
                                       report.status === 'Báo cáo mới' ? 'bg-red-500' : 
-                                      report.status === 'Đang xử lý' ? 'bg-amber-500' : 'bg-green-500'
+                                      report.status === 'Đang xử lý' ? 'bg-amber-500' : 'bg-emerald-500'
                                   }`}>
                                       {report.status === 'Báo cáo mới' ? '!' : report.status === 'Đang xử lý' ? '...' : '✓'}
                                   </div>
                               </div>
                               <div className="flex-grow min-w-0">
-                                  <div className="flex justify-between items-start">
-                                      <h4 className="font-bold text-slate-800 text-xs truncate pr-2">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</h4>
-                                      <span className="text-[10px] text-slate-400 whitespace-nowrap">{new Date(report.timestamp).toLocaleDateString('vi-VN')}</span>
+                                  <div className="flex justify-between items-start mb-1">
+                                      <h4 className="font-black text-slate-900 text-xs truncate pr-4 uppercase tracking-tight">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</h4>
+                                      <span className="text-[10px] font-bold text-slate-400 tabular-nums">{new Date(report.timestamp).toLocaleDateString('vi-VN')}</span>
                                   </div>
-                                  <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{report.description || report.userDescription}</p>
-                                  <div className="flex items-center mt-1.5 space-x-2">
-                                      <span className="text-[9px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-bold uppercase">
+                                  <p className="text-[11px] text-slate-500 line-clamp-1 leading-relaxed">{report.description || report.userDescription}</p>
+                                  <div className="flex items-center mt-3 space-x-3">
+                                      <span className="text-[9px] px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-wider">
                                           {report.area || 'Chưa xác định'}
                                       </span>
-                                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                                          (report.aiAnalysis?.priority) === 'Cao' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                                      <span className={`text-[9px] px-2.5 py-1 rounded-lg font-black uppercase tracking-wider ${
+                                          (report.aiAnalysis?.priority) === 'Cao' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
                                       }`}>
                                           {report.aiAnalysis?.priority || 'Trung bình'}
                                       </span>
@@ -350,22 +429,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
                           </div>
                       ))}
                       {filteredReports.length === 0 && (
-                          <div className="text-center py-10 text-slate-400 text-sm">Chưa có hoạt động nào.</div>
+                          <div className="text-center py-12 text-slate-400 text-sm font-medium">Chưa có hoạt động nào.</div>
                       )}
                    </div>
-                   <button className="w-full mt-4 py-2 text-xs font-bold text-slate-500 hover:text-teal-600 transition-colors">
+                   <button className="w-full mt-6 py-3 text-[10px] font-black text-slate-400 hover:text-brand-600 transition-colors uppercase tracking-widest">
                       Xem tất cả báo cáo của tôi
                    </button>
               </div>
           </div>
 
           {/* Heatmap */}
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-[400px] flex flex-col">
-            <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+          <div className="glass-card p-6 h-[500px] flex flex-col">
+            <h3 className="font-black text-slate-900 mb-8 flex items-center text-xs uppercase tracking-widest">
+              <span className="w-1.5 h-5 bg-red-500 rounded-full mr-3"></span>
               Bản đồ Rủi ro Môi trường
             </h3>
-            <div className="flex-grow rounded-2xl overflow-hidden relative z-0 border border-slate-100">
+            <div className="flex-grow rounded-[2rem] overflow-hidden relative z-0 border border-slate-100 shadow-inner">
                <MapContainer center={[15.85, 108.3]} zoom={9} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

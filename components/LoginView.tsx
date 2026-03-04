@@ -189,66 +189,84 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 py-12">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="p-8 text-center bg-gradient-to-br from-teal-500 to-teal-700 text-white">
-          <div className="inline-block bg-white/20 p-4 rounded-full mb-4 backdrop-blur-sm">
-             <LogoIcon className="w-12 h-12 text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 py-12 relative overflow-hidden">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-200/30 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-200/30 rounded-full blur-[120px]"></div>
+      </div>
+
+      <div className="glass-card w-full max-w-md overflow-hidden relative z-10 border-white/60 shadow-2xl shadow-slate-200">
+        <div className="p-10 text-center bg-gradient-to-br from-brand-600 to-brand-800 text-white relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full opacity-10">
+            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" strokeWidth="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight uppercase">DA NANG GREEN</h2>
-          <p className="text-teal-100 mt-2">Hệ thống Quản lý Môi trường Thông minh</p>
+          <div className="relative z-10">
+            <div className="inline-block bg-white/20 p-5 rounded-[2rem] mb-6 backdrop-blur-md border border-white/30 shadow-xl">
+               <LogoIcon className="w-14 h-14 text-white" />
+            </div>
+            <h2 className="text-4xl font-black tracking-tighter uppercase mb-2">DA NANG GREEN</h2>
+            <p className="text-brand-100 text-xs font-bold uppercase tracking-widest opacity-80">Hệ thống Quản lý Môi trường Thông minh</p>
+          </div>
         </div>
         
-        <div className="p-8">
-          <div className="flex mb-8 bg-slate-100 p-1 rounded-xl">
+        <div className="p-10">
+          <div className="flex mb-10 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100">
             <button 
               onClick={() => { setIsRegistering(false); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${!isRegistering ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 py-3 text-xs font-black rounded-xl transition-all uppercase tracking-wider ${!isRegistering ? 'bg-white text-brand-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Đăng nhập
             </button>
             <button 
               onClick={() => { setIsRegistering(true); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${isRegistering ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 py-3 text-xs font-black rounded-xl transition-all uppercase tracking-wider ${isRegistering ? 'bg-white text-brand-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Đăng ký
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {isRegistering && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tên Đơn vị / Tổ chức</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tên Đơn vị / Tổ chức</label>
                 <input
                   type="text"
                   value={organizationName}
                   onChange={(e) => setOrganizationName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white transition-all outline-none text-sm font-bold"
                   placeholder="Ví dụ: UBND Phường Hòa Cường Bắc"
                   required
                 />
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email đăng nhập</label>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email đăng nhập</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
+                className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white transition-all outline-none text-sm font-bold"
                 placeholder="admin@dananggreen.vn"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mật khẩu</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
+                className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white transition-all outline-none text-sm font-bold"
                 placeholder="••••••••"
                 required
               />
@@ -256,24 +274,24 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             {isRegistering && (
               <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Vai trò</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vai trò</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
+                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
                   >
                     {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
                   </select>
                 </div>
 
-                <div className="flex items-end gap-2">
-                  <div className="flex-grow">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Địa bàn quản lý</label>
+                <div className="flex items-end gap-3">
+                  <div className="flex-grow space-y-1.5">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Địa bàn quản lý</label>
                     <select
                       value={area}
                       onChange={(e) => setArea(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
+                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
                     >
                       {districts.map(d => <option key={d} value={d}>{d}</option>)}
                       <option value="All">Toàn vùng (ĐN - QN)</option>
@@ -282,10 +300,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   <button
                     type="button"
                     onClick={() => handleGetLocation()}
-                    className="p-3.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
+                    className="p-4 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 transition-all shadow-sm active:scale-95"
                     title="Xác định vị trí qua GPS"
                   >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -295,54 +313,54 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             )}
             
             {error && (
-              <div className="bg-red-50 text-red-500 p-4 rounded-xl text-sm border border-red-100 flex items-center animate-shake">
-                <div className="bg-red-500 text-white rounded-full p-1 mr-3 flex-shrink-0">
+              <div className="bg-red-50 text-red-600 p-5 rounded-[1.5rem] text-xs border border-red-100 flex items-center animate-shake font-bold">
+                <div className="bg-red-500 text-white rounded-full p-1.5 mr-4 flex-shrink-0 shadow-lg shadow-red-100">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="font-medium">{error}</span>
+                <span>{error}</span>
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 text-green-600 p-4 rounded-xl text-sm border border-green-100 flex items-center">
-                <div className="bg-green-500 text-white rounded-full p-1 mr-3 flex-shrink-0">
+              <div className="bg-emerald-50 text-emerald-600 p-5 rounded-[1.5rem] text-xs border border-emerald-100 flex items-center font-bold">
+                <div className="bg-emerald-500 text-white rounded-full p-1.5 mr-4 flex-shrink-0 shadow-lg shadow-emerald-100">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="font-medium">{success}</span>
+                <span>{success}</span>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-teal-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-teal-200 hover:bg-teal-700 hover:shadow-teal-300 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-brand-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-brand-100 hover:bg-brand-700 hover:shadow-brand-200 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
             >
               {isLoading ? 'Đang xử lý...' : (isRegistering ? 'Đăng ký tài khoản' : 'Đăng nhập Hệ thống')}
             </button>
 
             {!isRegistering && (
-              <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tài khoản Cán bộ Hệ thống</p>
-                <div className="grid grid-cols-1 gap-2">
+              <div className="mt-10 p-6 bg-slate-50/50 rounded-3xl border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Tài khoản Cán bộ Hệ thống</p>
+                <div className="grid grid-cols-1 gap-3">
                   <button 
                     type="button"
                     onClick={() => { setUsername('admin@dananggreen.vn'); setPassword('123456'); }}
-                    className="text-left px-3 py-2 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 group"
+                    className="text-left px-4 py-3 rounded-2xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-slate-100 group"
                   >
-                    <div className="text-[11px] font-bold text-slate-700 group-hover:text-teal-600">Admin: admin@dananggreen.vn</div>
-                    <div className="text-[10px] text-slate-400">Mật khẩu: 123456</div>
+                    <div className="text-[11px] font-black text-slate-700 group-hover:text-brand-600 transition-colors uppercase tracking-tight">Admin: admin@dananggreen.vn</div>
+                    <div className="text-[10px] font-bold text-slate-400">Mật khẩu: 123456</div>
                   </button>
                   <button 
                     type="button"
                     onClick={() => { setUsername('quanly@dananggreen.vn'); setPassword('123456'); }}
-                    className="text-left px-3 py-2 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 group"
+                    className="text-left px-4 py-3 rounded-2xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-slate-100 group"
                   >
-                    <div className="text-[11px] font-bold text-slate-700 group-hover:text-teal-600">Quản lý: quanly@dananggreen.vn</div>
-                    <div className="text-[10px] text-slate-400">Mật khẩu: 123456</div>
+                    <div className="text-[11px] font-black text-slate-700 group-hover:text-brand-600 transition-colors uppercase tracking-tight">Quản lý: quanly@dananggreen.vn</div>
+                    <div className="text-[10px] font-bold text-slate-400">Mật khẩu: 123456</div>
                   </button>
                 </div>
               </div>
@@ -352,16 +370,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               <button
                 type="button"
                 onClick={() => onLogin({ username: 'guest', role: 'citizen', area: 'All', organizationName: 'Người dân' })}
-                className="w-full mt-4 bg-white text-teal-600 font-bold py-3 rounded-xl border-2 border-teal-100 hover:bg-teal-50 transition-all duration-300"
+                className="w-full mt-4 bg-white text-brand-600 font-black py-4 rounded-2xl border-2 border-brand-50 hover:bg-brand-50 transition-all duration-300 uppercase tracking-widest text-[10px]"
               >
                 Tiếp tục với vai trò Người dân
               </button>
             )}
           </form>
           
-          <div className="mt-6 text-center text-xs text-slate-400">
+          <div className="mt-10 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
             <p>Hệ thống dành cho cán bộ quản lý, trường học và ban ngành.</p>
-            <p>Mọi đăng ký sẽ được giám sát bởi quản trị viên hệ thống.</p>
+            <p className="mt-1">Mọi đăng ký sẽ được giám sát bởi quản trị viên.</p>
           </div>
         </div>
       </div>

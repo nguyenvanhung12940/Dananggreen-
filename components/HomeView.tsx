@@ -132,124 +132,137 @@ const HomeView: React.FC<HomeViewProps> = ({ reports, onNavigateToMap, onStartNe
           {/* Cột trái: Nội dung chính */}
           <div className="lg:col-span-8 space-y-8">
             
-            {/* Hành động chính (Buttons) */}
+            {/* Hành động chính (Bento Grid) */}
             <section aria-label="Các hành động chính">
-               <h3 className="text-lg font-bold text-slate-800 mb-4 px-1">Truy cập nhanh</h3>
-               <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                 <button onClick={onStartNewReport} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl shadow-lg shadow-teal-200 hover:shadow-teal-300 transition-all duration-300 hover:-translate-y-1">
-                   <div className="p-2 sm:p-3 bg-white/20 rounded-full mb-2 sm:mb-3 text-white group-hover:scale-110 transition-transform">
-                     <DocumentPlusIcon className="w-6 h-6 sm:w-8 h-8" />
+               <h3 className="text-lg font-bold text-slate-900 mb-5 px-1 flex items-center">
+                 <span className="w-1.5 h-6 bg-brand-600 rounded-full mr-3"></span>
+                 Truy cập nhanh
+               </h3>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                 <button onClick={onStartNewReport} className="bento-button group flex flex-col items-center justify-center p-6 bg-brand-600 rounded-[2rem] shadow-xl shadow-brand-100">
+                   <div className="p-3 bg-white/20 rounded-2xl mb-3 text-white group-hover:scale-110 transition-transform">
+                     <DocumentPlusIcon className="w-8 h-8" />
                    </div>
-                   <span className="font-bold text-white text-xs sm:text-sm">Báo cáo mới</span>
+                   <span className="font-bold text-white text-sm">Báo cáo mới</span>
                  </button>
 
-                 <button onClick={onNavigateToMap} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-                   <div className="p-2 sm:p-3 bg-slate-50 rounded-full mb-2 sm:mb-3 text-slate-600 group-hover:bg-slate-100 transition-colors">
-                      <MapIcon className="w-6 h-6 sm:w-8 h-8" />
+                 <button onClick={onNavigateToMap} className="bento-button group flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-[2rem] shadow-sm hover:shadow-md">
+                   <div className="p-3 bg-slate-50 rounded-2xl mb-3 text-slate-600 group-hover:bg-slate-100 transition-colors">
+                      <MapIcon className="w-8 h-8" />
                    </div>
-                   <span className="font-semibold text-slate-700 text-xs sm:text-sm">Bản đồ Sự cố</span>
+                   <span className="font-bold text-slate-800 text-sm">Bản đồ Sự cố</span>
                  </button>
 
-                 <button onClick={onNavigateToEnvironmentalMap} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-                   <div className="p-2 sm:p-3 bg-indigo-50 rounded-full mb-2 sm:mb-3 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-                      <GlobeIcon className="w-6 h-6 sm:w-8 h-8" />
+                 <button onClick={onNavigateToEnvironmentalMap} className="bento-button group flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-[2rem] shadow-sm hover:shadow-md">
+                   <div className="p-3 bg-indigo-50 rounded-2xl mb-3 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                      <GlobeIcon className="w-8 h-8" />
                    </div>
-                   <span className="font-semibold text-slate-700 text-xs sm:text-sm text-center">Bản đồ Xanh</span>
+                   <span className="font-bold text-slate-800 text-sm">Bản đồ Xanh</span>
                  </button>
 
-                 <button onClick={onNavigateToSOS} className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-red-50 border border-red-100 rounded-2xl shadow-sm hover:shadow-red-100 transition-all duration-300 hover:-translate-y-1">
-                   <div className="p-2 sm:p-3 bg-red-100 rounded-full mb-2 sm:mb-3 text-red-600 group-hover:bg-red-200 transition-colors animate-pulse">
-                      <SOSIcon className="w-6 h-6 sm:w-8 h-8" />
+                 <button onClick={onNavigateToSOS} className="bento-button group flex flex-col items-center justify-center p-6 bg-red-50 border border-red-100 rounded-[2rem] shadow-sm hover:shadow-red-100">
+                   <div className="p-3 bg-red-100 rounded-2xl mb-3 text-red-600 group-hover:bg-red-200 transition-colors animate-pulse">
+                      <SOSIcon className="w-8 h-8" />
                    </div>
-                   <span className="font-bold text-red-700 text-xs sm:text-sm">SOS</span>
+                   <span className="font-bold text-red-700 text-sm">SOS Khẩn cấp</span>
                  </button>
                </div>
             </section>
-            <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                 <span className="w-1.5 h-6 bg-teal-500 rounded-full mr-3"></span>
-                 Tổng quan cộng đồng
+
+            {/* Thống kê cộng đồng */}
+            <section className="glass-card p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-5 flex items-center">
+                 <span className="w-1.5 h-6 bg-blue-500 rounded-full mr-3"></span>
+                 Tác động cộng đồng
               </h3>
-              <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                <div className="relative overflow-hidden rounded-2xl bg-blue-50 p-4 sm:p-6 transition-all hover:bg-blue-100/80">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg shadow-blue-100">
                   <div className="relative z-10">
-                    <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">Tổng báo cáo</p>
-                    <p className="text-3xl sm:text-4xl font-extrabold text-blue-600 tracking-tight">{totalReports}</p>
+                    <p className="text-xs font-bold text-blue-100 uppercase tracking-wider mb-1">Tổng báo cáo</p>
+                    <p className="text-4xl font-black tracking-tight">{totalReports}</p>
                   </div>
-                   <ClipboardListIcon className="absolute -right-4 -bottom-4 w-20 h-20 sm:w-24 h-24 text-blue-200 opacity-50 rotate-12" />
+                  <ClipboardListIcon className="absolute -right-6 -bottom-6 w-28 h-28 text-white/10 rotate-12" />
                 </div>
-                <div className="relative overflow-hidden rounded-2xl bg-green-50 p-4 sm:p-6 transition-all hover:bg-green-100/80">
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-lg shadow-emerald-100">
                   <div className="relative z-10">
-                    <p className="text-xs sm:text-sm font-medium text-green-800 mb-1">Đã xử lý</p>
-                    <p className="text-3xl sm:text-4xl font-extrabold text-green-600 tracking-tight">{resolvedReports}</p>
+                    <p className="text-xs font-bold text-emerald-100 uppercase tracking-wider mb-1">Đã xử lý</p>
+                    <p className="text-4xl font-black tracking-tight">{resolvedReports}</p>
                   </div>
-                  <CheckBadgeIcon className="absolute -right-4 -bottom-4 w-20 h-20 sm:w-24 h-24 text-green-200 opacity-50 rotate-12"/>
+                  <CheckBadgeIcon className="absolute -right-6 -bottom-6 w-28 h-28 text-white/10 rotate-12"/>
                 </div>
               </div>
             </section>
 
             {/* Báo cáo gần đây */}
-            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+            <section className="glass-card p-6">
               <div className="flex justify-between items-center mb-6">
-                 <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                 <h3 className="text-lg font-bold text-slate-900 flex items-center">
                    <span className="w-1.5 h-6 bg-amber-500 rounded-full mr-3"></span>
-                   Báo cáo mới nhất
+                   Sự cố mới nhất
                 </h3>
-                <button onClick={onNavigateToMap} className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:underline">Xem tất cả</button>
+                <button onClick={onNavigateToMap} className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-3 py-1.5 rounded-full transition-colors">Xem tất cả</button>
               </div>
               
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {reports.slice(0, 4).map((report) => {
                   const statusDetails = getStatusDetails(report.status);
                   return (
                     <button
                       key={report.id}
                       onClick={() => onSelectReportAndNavigateToMap(report)}
-                      className="w-full text-left p-4 rounded-2xl bg-white border border-slate-100 hover:border-teal-200 hover:shadow-md transition-all duration-200 flex items-start gap-4 group"
+                      className="w-full text-left p-4 rounded-3xl bg-white border border-slate-100 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-50 transition-all duration-300 flex flex-col gap-4 group"
                     >
                       {/* Media Thumbnail */}
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100 relative">
+                      <div className="w-full aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 relative">
                          {report.mediaType === 'image' ? (
-                            <img src={report.mediaUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                            <img src={report.mediaUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                          ) : (
                             <video src={report.mediaUrl} className="w-full h-full object-cover" />
                          )}
+                         <div className="absolute top-3 left-3">
+                            <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm border ${statusDetails.bgColor} ${statusDetails.textColor} ${statusDetails.borderColor}`}>
+                                {statusDetails.label}
+                            </span>
+                         </div>
                          {report.mediaType === 'video' && (
                              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                 <div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center">
-                                     <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-slate-800 border-b-4 border-b-transparent ml-0.5"></div>
+                                 <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                                     <div className="w-0 h-0 border-t-6 border-t-transparent border-l-8 border-l-slate-900 border-b-6 border-b-transparent ml-1"></div>
                                  </div>
                              </div>
                          )}
                       </div>
 
-                      <div className="flex-grow min-w-0">
-                        <div className="flex justify-between items-start">
-                             <h4 className="font-bold text-slate-800 text-sm truncate pr-2 group-hover:text-teal-700 transition-colors">
+                      <div className="px-1">
+                        <div className="flex justify-between items-start mb-1">
+                             <h4 className="font-bold text-slate-900 text-sm truncate group-hover:text-brand-600 transition-colors">
                                 {report.aiAnalysis.issueType}
                             </h4>
-                            <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">{formatTimeAgo(report.timestamp)}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{formatTimeAgo(report.timestamp)}</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-1">{report.aiAnalysis.description}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-3">{report.aiAnalysis.description}</p>
                         
-                        <div className="mt-2 flex items-center gap-2">
-                             <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border ${statusDetails.bgColor} ${statusDetails.textColor} ${statusDetails.borderColor}`}>
-                                {statusDetails.label}
-                            </span>
-                            <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                                {report.aiAnalysis.priority}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                                <div className={`w-2 h-2 rounded-full ${report.aiAnalysis.priority === 'Cao' ? 'bg-red-500' : report.aiAnalysis.priority === 'Trung bình' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                    Ưu tiên: {report.aiAnalysis.priority}
+                                </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                {report.area}
                             </span>
                         </div>
                       </div>
                     </button>
                   );
                 })}
-                 {reports.length === 0 && (
-                    <div className="text-center py-10">
-                        <p className="text-slate-400">Chưa có báo cáo nào.</p>
-                    </div>
-                )}
               </div>
+              {reports.length === 0 && (
+                <div className="text-center py-10">
+                  <p className="text-slate-400">Chưa có báo cáo nào.</p>
+                </div>
+              )}
             </section>
           </div>
 

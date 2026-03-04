@@ -19,6 +19,8 @@ export const initDb = () => {
       role TEXT, -- 'admin', 'district_manager', 'ward_manager', 'school_manager', 'department_manager', 'environment_department'
       area TEXT, -- e.g., 'Hai Chau', 'Son Tra', 'Hoa Vang'
       organizationName TEXT,
+      email TEXT,
+      phone TEXT,
       status TEXT DEFAULT 'active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -27,6 +29,12 @@ export const initDb = () => {
   // Migration: Add columns if they don't exist
   try {
     db.exec("ALTER TABLE users ADD COLUMN organizationName TEXT");
+  } catch (e) {}
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN email TEXT");
+  } catch (e) {}
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN phone TEXT");
   } catch (e) {}
   try {
     db.exec("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'");
@@ -59,6 +67,21 @@ export const initDb = () => {
   try {
     db.exec("ALTER TABLE reports ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
   } catch (e) {}
+
+  // Notifications table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER,
+      reportId TEXT,
+      message TEXT,
+      type TEXT, -- 'new_report', 'status_update', 'emergency'
+      isRead INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(userId) REFERENCES users(id),
+      FOREIGN KEY(reportId) REFERENCES reports(id)
+    )
+  `);
 
   // Seed users if empty
   const stmt = db.prepare('SELECT count(*) as count FROM users');

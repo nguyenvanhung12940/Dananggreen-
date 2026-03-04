@@ -47,6 +47,56 @@ async function startServer() {
     });
   };
 
+  // Helper: Create notifications for authorities
+  const createNotificationsForReport = (report: any) => {
+    try {
+      const { id: reportId, area, aiAnalysis, priority } = report;
+      const issueType = aiAnalysis?.issueType || report.issueType;
+      const reportPriority = aiAnalysis?.priority || report.priority;
+
+      // Find relevant authorities
+      // Authorities are users with roles other than 'citizen'
+      // They should be notified if their area matches the report area or if they manage 'All' areas
+      const authorities = db.prepare(`
+        SELECT id, username, email, phone FROM users 
+        WHERE role NOT IN ('citizen') 
+        AND (area = ? OR area = 'All')
+      `).all(area) as any[];
+
+      const insertNotification = db.prepare(`
+        INSERT INTO notifications (userId, reportId, message, type, isRead)
+        VALUES (?, ?, ?, ?, 0)
+      `);
+
+      authorities.forEach(auth => {
+        const message = `Báo cáo mới: ${issueType} tại ${area}. Mức độ ưu tiên: ${reportPriority}.`;
+        insertNotification.run(auth.id, reportId, message, 'new_report');
+        
+        // Real-time notification via WebSocket
+        broadcast({ 
+          type: 'NEW_NOTIFICATION', 
+          userId: auth.id, 
+          notification: {
+            reportId,
+            message,
+            type: 'new_report',
+            timestamp: new Date().toISOString()
+          }
+        });
+
+        // Simulate external notification (Email/SMS)
+        if (auth.email) {
+          console.log(`[SIMULATED EMAIL] To: ${auth.email} | Subject: Sự cố môi trường mới | Body: ${message}`);
+        }
+        if (auth.phone) {
+          console.log(`[SIMULATED SMS] To: ${auth.phone} | Body: ${message}`);
+        }
+      });
+    } catch (error) {
+      console.error('Error creating notifications:', error);
+    }
+  };
+
   // --- API Routes ---
 
   // Health check for Vercel and Supabase
@@ -417,7 +467,9 @@ let supabaseTableErrorLogged = false;
           }]);
         
         if (!error) {
-          broadcast({ type: 'NEW_REPORT', report: { ...report, area, timestamp } });
+          const fullReport = { ...report, area, timestamp };
+          broadcast({ type: 'NEW_REPORT', report: fullReport });
+          createNotificationsForReport(fullReport);
           return res.status(201).json({ message: 'Report created successfully (Supabase)' });
         }
         
@@ -456,7 +508,9 @@ let supabaseTableErrorLogged = false;
       );
 
       // Broadcast new report via WebSocket
-      broadcast({ type: 'NEW_REPORT', report: { ...report, area, timestamp } });
+      const fullReport = { ...report, area, timestamp };
+      broadcast({ type: 'NEW_REPORT', report: fullReport });
+      createNotificationsForReport(fullReport);
 
       res.status(201).json({ message: 'Report created successfully (SQLite)' });
     } catch (error) {
@@ -531,6 +585,7 @@ let supabaseTableErrorLogged = false;
           }]);
           if (!error) {
             results.success++;
+            createNotificationsForReport({ ...report, area, timestamp: reportTimestamp });
             continue;
           }
           const isTableNotFound = error.code === '42P01' || error.message?.includes('Could not find the table');
@@ -557,6 +612,7 @@ let supabaseTableErrorLogged = false;
           report.status, reportTimestamp, area
         );
         results.success++;
+        createNotificationsForReport({ ...report, area, timestamp: reportTimestamp });
       } catch (err) {
         console.error('SQLite bulk insert error:', err);
         results.failed++;
@@ -634,6 +690,57 @@ let supabaseTableErrorLogged = false;
     } catch (error: any) {
       console.error('External Model Error:', error);
       res.status(500).json({ message: 'Lỗi khi kết nối với mô hình bên ngoài', error: error.message });
+    }
+  });
+
+  // Get Notifications
+  app.get('/api/notifications', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      const notifications = db.prepare(`
+        SELECT n.*, r.area, r.issueType, r.priority 
+        FROM notifications n
+        LEFT JOIN reports r ON n.reportId = r.id
+        WHERE n.userId = ?
+        ORDER BY n.created_at DESC
+        LIMIT 50
+      `).all(decoded.id);
+      
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: 'Lỗi khi tải thông báo' });
+    }
+  });
+
+  // Mark Notification as Read
+  app.patch('/api/notifications/:id/read', async (req, res) => {
+    try {
+      const { id } = req.params;
+      db.prepare('UPDATE notifications SET isRead = 1 WHERE id = ?').run(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: 'Lỗi khi cập nhật thông báo' });
+    }
+  });
+
+  // Mark All Notifications as Read
+  app.post('/api/notifications/read-all', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      db.prepare('UPDATE notifications SET isRead = 1 WHERE userId = ?').run(decoded.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: 'Lỗi khi cập nhật thông báo' });
     }
   });
 

@@ -88,3 +88,16 @@ export interface WeatherData {
 }
 
 export type ImageValidationStatus = 'idle' | 'analyzing' | 'valid' | 'invalid';
+
+export interface EnvironmentalNotification {
+  id: number;
+  userId: number;
+  reportId: string;
+  message: string;
+  type: 'new_report' | 'status_update' | 'emergency';
+  isRead: boolean;
+  created_at: string;
+  area?: string;
+  issueType?: string;
+  priority?: string;
+}

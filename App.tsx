@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import * as L from 'leaflet';
 import { analyzeEnvironmentalImage, askAIAboutEnvironment } from './services/geminiService';
 import { saveOfflineReport, getOfflineReports, deleteOfflineReport, compressImage } from './services/offlineService';
-import { EnvironmentalReport, AIAnalysis, ReportStatus, ChatMessage, ToastMessage, EducationalTopic, EnvironmentalPOI } from './types';
+import { EnvironmentalReport, AIAnalysis, ReportStatus, ChatMessage, ToastMessage, EducationalTopic, EnvironmentalPOI, EnvironmentalNotification } from './types';
 import MainMapView from './components/MainMapView';
 import ReportForm from './components/ReportForm';
 import ReportDetailModal from './components/ReportDetailModal';
@@ -20,6 +20,7 @@ import OfflineReportsModal from './components/OfflineReportsModal';
 import LoginView from './components/LoginView';
 import DashboardView from './components/DashboardView';
 import BottomNav from './components/BottomNav';
+import NotificationCenter from './components/NotificationCenter';
 import { SOSIcon } from './components/icons/SOSIcon';
 import { CloudIcon } from './components/icons/CloudIcon';
 
@@ -163,6 +164,9 @@ const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<any>(null);
 
+  // Notifications State
+  const [notifications, setNotifications] = useState<EnvironmentalNotification[]>([]);
+
   // State cho Trợ lý AI nổi
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { 
@@ -203,6 +207,29 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Fetch notifications for authorities
+  const fetchNotifications = async () => {
+    if (!user || user.role === 'citizen') return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/notifications', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user.role !== 'citizen') {
+      fetchNotifications();
+    }
+  }, [user]);
+
   // Fetch reports from API
   const fetchReports = async () => {
     if (!isOnline) return;
@@ -242,6 +269,11 @@ const App: React.FC = () => {
             setReports(prev => [newReport, ...prev]);
           } else if (data.type === 'REPORT_UPDATED') {
             setReports(prev => prev.map(r => r.id === data.id ? { ...r, status: data.status } : r));
+          } else if (data.type === 'NEW_NOTIFICATION') {
+            if (user && data.userId === user.id) {
+              setNotifications(prev => [data.notification, ...prev]);
+              addToast('Bạn có thông báo mới từ hệ thống!', 'warning');
+            }
           }
         } catch (err) {
           console.error('Error parsing WebSocket message:', err);
@@ -763,7 +795,45 @@ const App: React.FC = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setNotifications([]);
     setView('home');
+  };
+
+  const handleMarkNotificationAsRead = async (id: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`/api/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('/api/notifications/read-all', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+    }
+  };
+
+  const handleSelectReportFromNotification = (reportId: string) => {
+    const report = reports.find(r => r.id === reportId);
+    if (report) {
+      setSelectedReport(report);
+      setView('map');
+    } else {
+      // If report not in current state, fetch it or just go to map
+      setView('map');
+    }
   };
 
   const renderContent = () => {
@@ -820,7 +890,13 @@ const App: React.FC = () => {
       case 'login':
         return <LoginView onLogin={handleLogin} />;
       case 'dashboard':
-        return <DashboardView user={user} reports={reports} />;
+        return <DashboardView 
+                  user={user} 
+                  reports={reports} 
+                  notifications={notifications}
+                  onMarkNotificationAsRead={handleMarkNotificationAsRead}
+                  onSelectReport={handleSelectReportFromNotification}
+                />;
       default:
         return <HomeView 
                   reports={reports} 
@@ -835,20 +911,29 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-50 via-slate-50 to-white selection:bg-teal-100 selection:text-teal-900">
-       <ToastContainer toasts={toasts} onDismiss={removeToast} />
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col selection:bg-brand-100 selection:text-brand-900 relative">
+      {/* Background Decorative Elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-100/40 rounded-full blur-[120px] animate-pulse"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-100/40 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
       
-      {/* Header - Ẩn trên mobile khi ở chế độ xem bản đồ */}
+      {/* Header - Glassmorphism style */}
       {!(view === 'map' || view === 'environmentalMap') && (
-        <header className="bg-white/80 backdrop-blur-md shadow-sm z-20 sticky top-0 border-b border-slate-100 transition-all duration-300">
+        <header className="glass-header sticky top-0 z-50 transition-all duration-300">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
             <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setView('home')}>
-               <div className="transform transition-transform group-hover:scale-105 duration-300">
-                  <LogoIcon className="w-10 h-10 drop-shadow-sm" />
+               <div className="p-2 bg-brand-600 rounded-xl shadow-lg shadow-brand-200 group-hover:scale-110 transition-transform duration-300">
+                  <LogoIcon className="w-6 h-6 text-white" />
                </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-teal-700">
-                DA NANG <span className="text-teal-600">GREEN</span>
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 leading-none">
+                  DA NANG <span className="text-brand-600">GREEN</span>
+                </h1>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 hidden xs:block">AI Environmental Monitoring</span>
+              </div>
             </div>
             
              <div className="flex items-center space-x-2 sm:space-x-4">
@@ -862,74 +947,73 @@ const App: React.FC = () => {
                     <span className="hidden xs:inline">Offline ({pendingReportsCount})</span>
                   </button>
                 )}
-                {isOnline && pendingReportsCount > 0 && (
-                   <div className="flex items-center space-x-1 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold">
-                    <CloudIcon className="w-4 h-4 animate-bounce" />
-                    <span className="hidden xs:inline">Đang đồng bộ...</span>
-                  </div>
-                )}
 
-                {/* SOS Button - Ẩn trên mobile vì đã có BottomNav */}
-                <button
-                  onClick={() => setView('sos')}
-                  className="hidden md:flex w-10 h-10 bg-red-600 text-white rounded-full items-center justify-center animate-pulse hover:bg-red-700 transition-all shadow-lg hover:shadow-red-200 transform hover:scale-105"
-                  title="SOS"
-                >
-                  <SOSIcon className="w-6 h-6" />
-                </button>
+                {/* Points Display */}
+                <div className="flex items-center space-x-2 bg-white border border-slate-100 text-slate-700 font-bold px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm shadow-sm hover:shadow-md transition-shadow">
+                    <TrophyIcon className="w-4 h-4 text-amber-500" />
+                    <span className="hidden xs:inline">Điểm:</span>
+                    <span className="text-brand-600">{userPoints}</span>
+                </div>
 
-                {/* Auth Controls - Ẩn trên mobile vì đã có BottomNav */}
-                <div className="hidden md:flex items-center space-x-3">
+                {/* Auth & Notifications - Desktop Only */}
+                <div className="hidden md:flex items-center space-x-3 border-l border-slate-200 pl-4 ml-2">
+                  {user && user.role !== 'citizen' && (
+                    <NotificationCenter 
+                      notifications={notifications}
+                      onMarkAsRead={handleMarkNotificationAsRead}
+                      onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+                      onSelectReport={handleSelectReportFromNotification}
+                    />
+                  )}
+                  
                   {user ? (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <button 
                         onClick={() => setView('dashboard')}
-                        className="text-sm font-bold text-slate-700 hover:text-teal-600 transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                       >
-                        Dashboard
+                        <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-[10px] font-bold">
+                          {(user.fullName || user.username || 'U').charAt(0)}
+                        </div>
+                        <span className="text-xs font-bold text-slate-700">Dashboard</span>
                       </button>
                       <button 
                         onClick={handleLogout}
-                        className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors"
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                        title="Đăng xuất"
                       >
-                        Đăng xuất
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                       </button>
                     </div>
                   ) : (
                     <button 
                       onClick={() => setView('login')}
-                      className="text-sm font-bold text-slate-700 hover:text-teal-600 transition-colors bg-slate-100 px-3 py-1.5 rounded-full"
+                      className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md shadow-slate-200 active:scale-95"
                     >
-                      Cán bộ
+                      Đăng nhập
                     </button>
                   )}
                 </div>
 
-                {/* Auto Monitoring Toggle - Ẩn trên mobile vì tự động bật */}
+                {/* Auto Monitoring Toggle - Desktop Only */}
                 <button
                   onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
-                  className={`hidden lg:flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  className={`hidden lg:flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
                     isAutoMonitoring 
-                      ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 animate-pulse' 
-                      : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                      : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
                   }`}
-                  title="Tự động giám sát và cập nhật báo cáo mỗi 10s"
+                  title="Tự động giám sát"
                 >
-                  <div className={`w-2 h-2 rounded-full mr-2 ${isAutoMonitoring ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
+                  <div className={`w-1.5 h-1.5 rounded-full mr-2 ${isAutoMonitoring ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                   {isAutoMonitoring ? 'Giám sát: Bật' : 'Giám sát: Tắt'}
                 </button>
-
-                <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 text-amber-900 font-bold px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm shadow-sm">
-                    <TrophyIcon className="w-4 h-4 sm:w-5 h-5 text-amber-500" />
-                    <span className="hidden xs:inline">Điểm:</span>
-                    <span>{userPoints}</span>
-                </div>
               </div>
           </div>
         </header>
       )}
       
-      <main className={`flex-grow relative flex flex-col ${view === 'map' || view === 'environmentalMap' ? 'h-[calc(100vh-64px)] md:h-screen' : ''} pb-16 md:pb-0`}>
+      <main className={`flex-grow relative flex flex-col ${view === 'map' || view === 'environmentalMap' ? 'h-[calc(100vh-64px)] md:h-screen' : ''} pb-20 md:pb-0`}>
          {renderContent()}
         
         {selectedReport && (
@@ -960,6 +1044,7 @@ const App: React.FC = () => {
         activeView={view} 
         onNavigate={setView} 
         isLoggedIn={!!user} 
+        unreadNotificationsCount={notifications.filter(n => !n.isRead).length}
       />
 
       {/* Trợ lý AI nổi */}

@@ -17,8 +17,10 @@
     "cors": "^2.8.6",
     "date-fns": "^4.1.0",
     "express": "^5.2.1",
+    "framer-motion": "^12.35.0",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "1.9.4",
+    "motion": "^12.35.0",
     "openai": "^6.25.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -28,6 +30,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
@@ -38,6 +41,7 @@
     "@types/react-leaflet": "^2.8.3",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.0.0",
+    "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
