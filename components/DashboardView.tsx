@@ -31,6 +31,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'looker'>('overview');
 
   const lookerUrl = import.meta.env.VITE_LOOKER_DASHBOARD_URL;
+  const isAdmin = user && (user.role === 'admin' || user.role === 'environment_department');
 
   // Mock Leaderboard Data
   const leaderboard = [
@@ -42,12 +43,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
   ];
 
   const filteredReports = React.useMemo(() => {
-    const isGlobalUser = user && (user.role === 'admin' || user.role === 'environment_department');
-    if (user && !isGlobalUser && user.area && user.area !== 'All') {
+    if (user && !isAdmin && user.area && user.area !== 'All') {
       return reports.filter((r: any) => r.area === user.area);
     }
     return reports;
-  }, [reports, user]);
+  }, [reports, user, isAdmin]);
 
   const stats = React.useMemo(() => {
     const daNangDistricts = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa'];
@@ -90,46 +90,67 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
   if (!stats) return <div className="p-8 text-center">Không có dữ liệu.</div>;
 
   return (
-    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Trung tâm Điều hành Thông minh (IOC)</h2>
-          {user && (
-            <p className="text-slate-500 text-sm font-medium mt-1">
-              Đơn vị: <span className="text-teal-600">{user.organizationName || user.username}</span> | 
-              Khu vực: <span className="text-teal-600">{user.area}</span>
-            </p>
-          )}
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex bg-slate-200 p-1 rounded-xl">
-            <button 
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Tổng quan
-            </button>
-            <button 
-              onClick={() => setActiveTab('looker')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'looker' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Phân tích Looker
-            </button>
+    <div className="p-4 sm:p-6 space-y-6 bg-slate-50 min-h-screen pb-24 md:pb-6">
+      {/* Profile Header Card */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-50 rounded-full -ml-12 -mb-12 opacity-50"></div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-100">
+              <span className="text-2xl font-bold uppercase">{(user?.organizationName || user?.username || 'U').charAt(0)}</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-800">{user?.organizationName || user?.username || 'Người dùng'}</h2>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-bold rounded-full border border-teal-100 uppercase">
+                  {user?.role === 'admin' ? 'Quản trị viên' : user?.role === 'environment_department' ? 'Cán bộ Môi trường' : 'Công dân Xanh'}
+                </span>
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full border border-slate-200 uppercase">
+                  Khu vực: {user?.area || 'Toàn thành phố'}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => setIsImportModalOpen(true)}
-              className="px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold flex items-center hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
-            >
-                <FileUpIcon className="w-4 h-4 mr-2" />
-                Nhập dữ liệu Excel
-            </button>
+          
+          <div className="flex items-center space-x-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Điểm đóng góp</p>
+              <p className="text-2xl font-black text-teal-600">1,250</p>
+            </div>
+            <div className="h-10 w-[1px] bg-slate-100 mx-2 hidden sm:block"></div>
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+              <button 
+                onClick={() => setActiveTab('overview')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Tổng quan
+              </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => setActiveTab('looker')}
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'looker' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Phân tích
+                </button>
+              )}
+            </div>
+            {isAdmin && (
+              <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all shadow-sm"
+                title="Nhập dữ liệu Excel"
+              >
+                  <FileUpIcon className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {healthStatus?.supabase === 'error' && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start space-x-3 text-red-700 mb-6">
+      {healthStatus?.supabase === 'error' && isAdmin && (
+        <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start space-x-3 text-red-700">
           <div className="p-2 bg-red-100 rounded-lg">
              <AlertCircleIcon className="w-5 h-5" />
           </div>
@@ -147,14 +168,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
               >
                 Sao chép mã SQL tạo bảng
               </button>
-              <a 
-                href="https://supabase.com/dashboard" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-[10px] bg-white text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-bold hover:bg-red-50 transition-colors"
-              >
-                Mở Supabase Dashboard
-              </a>
             </div>
           </div>
         </div>
@@ -164,7 +177,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
         onImportSuccess={() => {
-          // Trigger a global refresh if needed, or just let the WebSocket/App handle it
           window.location.reload();
         }} 
       />
@@ -172,26 +184,40 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
       {activeTab === 'overview' ? (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <p className="text-slate-500 text-sm font-medium">Tổng số sự cố</p>
-              <p className="text-4xl font-extrabold text-slate-800 mt-2">{stats.total}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                <FileUpIcon className="w-5 h-5" />
+              </div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Tổng báo cáo</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{stats.total}</p>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <p className="text-slate-500 text-sm font-medium">Đang xử lý</p>
-              <p className="text-4xl font-extrabold text-amber-500 mt-2">
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-3">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+              </div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Đang xử lý</p>
+              <p className="text-2xl font-black text-amber-500 mt-1">
                 {stats.byStatus.find(s => s.status === 'Đang xử lý')?.count || 0}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <p className="text-slate-500 text-sm font-medium">Mức độ Cao</p>
-              <p className="text-4xl font-extrabold text-red-500 mt-2">
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-3">
+                <AlertCircleIcon className="w-5 h-5" />
+              </div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Ưu tiên Cao</p>
+              <p className="text-2xl font-black text-red-500 mt-1">
                 {stats.byPriority.find(p => p.priority === 'Cao')?.count || 0}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <p className="text-slate-500 text-sm font-medium">Đã xử lý</p>
-              <p className="text-4xl font-extrabold text-green-500 mt-2">
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Đã hoàn thành</p>
+              <p className="text-2xl font-black text-green-500 mt-1">
                 {stats.byStatus.find(s => s.status === 'Đã xử lý')?.count || 0}
               </p>
             </div>
@@ -199,23 +225,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-80">
-              <h3 className="font-bold text-slate-700 mb-4">Phân bố theo Khu vực (ĐN - QN)</h3>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-80">
+              <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
+                <span className="w-2 h-2 bg-teal-500 rounded-full mr-2"></span>
+                Phân bố theo Khu vực
+              </h3>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={(stats as any).byRegion}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                     cursor={{ fill: '#f8fafc' }}
                   />
-                  <Bar dataKey="count" fill="#0d9488" radius={[4, 4, 0, 0]} barSize={40} />
+                  <Bar dataKey="count" fill="#0d9488" radius={[6, 6, 0, 0]} barSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-80">
-              <h3 className="font-bold text-slate-700 mb-4">Trạng thái Xử lý</h3>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-80">
+              <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                Trạng thái Xử lý
+              </h3>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -224,73 +256,74 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
                     cy="50%"
                     innerRadius={60}
                     outerRadius={80}
-                    paddingAngle={5}
+                    paddingAngle={8}
                     dataKey="count"
+                    stroke="none"
                   >
                     {stats.byStatus.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* NEW SECTION: Leaderboard & Recent Activity */}
+          {/* Leaderboard & Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Leaderboard */}
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-1">
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 lg:col-span-1">
                   <div className="flex items-center justify-between mb-6">
-                      <h3 className="font-bold text-slate-800 flex items-center">
+                      <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider">
                           <TrophyIcon className="w-5 h-5 text-yellow-500 mr-2" />
-                          Bảng Xếp Hạng Xanh
+                          Bảng Xếp Hạng
                       </h3>
-                      <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">Tháng này</span>
+                      <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">Tháng 3</span>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                       {leaderboard.map((user, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                          <div key={index} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all group">
                               <div className="flex items-center space-x-3">
-                                  <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'}`}>
+                                  <div className={`w-6 h-6 flex items-center justify-center rounded-full font-black text-[10px] ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'}`}>
                                       {index + 1}
                                   </div>
-                                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
+                                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition-transform" />
                                   <div>
-                                      <p className="font-bold text-slate-800 text-sm">{user.name}</p>
-                                      <p className="text-xs text-slate-500">{user.rank}</p>
+                                      <p className="font-bold text-slate-800 text-xs">{user.name}</p>
+                                      <p className="text-[10px] text-slate-500">{user.rank}</p>
                                   </div>
                               </div>
                               <div className="text-right">
-                                  <p className="font-bold text-teal-600">{user.points}</p>
+                                  <p className="font-black text-teal-600 text-sm">{user.points}</p>
                                   <p className="text-[10px] text-slate-400">điểm</p>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <button className="w-full mt-6 py-2 text-sm font-bold text-teal-600 hover:bg-teal-50 rounded-xl transition-colors">
-                      Xem tất cả
+                  <button className="w-full mt-6 py-2.5 text-xs font-bold text-teal-600 bg-teal-50/50 hover:bg-teal-50 rounded-2xl transition-colors">
+                      Xem tất cả cộng đồng
                   </button>
               </div>
 
-              {/* Recent Activity (Taking up 2 columns) */}
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
-                   <h3 className="font-bold text-slate-800 mb-6 flex items-center">
+              {/* Recent Activity */}
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 lg:col-span-2">
+                   <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
                       <UsersIcon className="w-5 h-5 text-blue-500 mr-2" />
                       Hoạt động Gần đây
                    </h3>
-                   <div className="space-y-0">
-                      {filteredReports.slice(0, 5).map((report, index) => (
-                          <div key={report.id} className="flex items-start space-x-4 p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                   <div className="space-y-2">
+                      {filteredReports.slice(0, 4).map((report) => (
+                          <div key={report.id} className="flex items-center space-x-4 p-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100">
                               <div className="relative flex-shrink-0">
                                   <img 
                                     src={report.mediaUrl} 
                                     alt="Report" 
-                                    className="w-16 h-16 rounded-xl object-cover border border-slate-100 shadow-sm"
+                                    className="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"
                                     onError={(e) => {(e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image'}}
                                   />
-                                  <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold ${
+                                  <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold ${
                                       report.status === 'Báo cáo mới' ? 'bg-red-500' : 
                                       report.status === 'Đang xử lý' ? 'bg-amber-500' : 'bg-green-500'
                                   }`}>
@@ -299,15 +332,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
                               </div>
                               <div className="flex-grow min-w-0">
                                   <div className="flex justify-between items-start">
-                                      <h4 className="font-bold text-slate-800 text-sm truncate pr-2">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</h4>
-                                      <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(report.timestamp).toLocaleDateString('vi-VN')}</span>
+                                      <h4 className="font-bold text-slate-800 text-xs truncate pr-2">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</h4>
+                                      <span className="text-[10px] text-slate-400 whitespace-nowrap">{new Date(report.timestamp).toLocaleDateString('vi-VN')}</span>
                                   </div>
-                                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{report.description || report.userDescription}</p>
-                                  <div className="flex items-center mt-2 space-x-2">
-                                      <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium">
+                                  <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{report.description || report.userDescription}</p>
+                                  <div className="flex items-center mt-1.5 space-x-2">
+                                      <span className="text-[9px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-bold uppercase">
                                           {report.area || 'Chưa xác định'}
                                       </span>
-                                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                           (report.aiAnalysis?.priority) === 'Cao' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
                                       }`}>
                                           {report.aiAnalysis?.priority || 'Trung bình'}
@@ -320,13 +353,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
                           <div className="text-center py-10 text-slate-400 text-sm">Chưa có hoạt động nào.</div>
                       )}
                    </div>
+                   <button className="w-full mt-4 py-2 text-xs font-bold text-slate-500 hover:text-teal-600 transition-colors">
+                      Xem tất cả báo cáo của tôi
+                   </button>
               </div>
           </div>
 
-          {/* Heatmap / Risk Map */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
-            <h3 className="font-bold text-slate-700 mb-4">Bản đồ Rủi ro Môi trường (Heatmap)</h3>
-            <div className="flex-grow rounded-xl overflow-hidden relative z-0">
+          {/* Heatmap */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-[400px] flex flex-col">
+            <h3 className="font-bold text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
+              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+              Bản đồ Rủi ro Môi trường
+            </h3>
+            <div className="flex-grow rounded-2xl overflow-hidden relative z-0 border border-slate-100">
                <MapContainer center={[15.85, 108.3]} zoom={9} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -336,18 +375,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
                   <CircleMarker 
                     key={report.id}
                     center={[report.latitude, report.longitude]}
-                    radius={(report.aiAnalysis?.priority) === 'Cao' ? 15 : 8}
+                    radius={(report.aiAnalysis?.priority) === 'Cao' ? 12 : 6}
                     pathOptions={{ 
-                        color: (report.aiAnalysis?.priority) === 'Cao' ? 'red' : ((report.aiAnalysis?.priority) === 'Trung bình' ? 'orange' : 'green'),
-                        fillColor: (report.aiAnalysis?.priority) === 'Cao' ? 'red' : ((report.aiAnalysis?.priority) === 'Trung bình' ? 'orange' : 'green'),
-                        fillOpacity: 0.6
+                        color: (report.aiAnalysis?.priority) === 'Cao' ? '#ef4444' : ((report.aiAnalysis?.priority) === 'Trung bình' ? '#f59e0b' : '#10b981'),
+                        fillColor: (report.aiAnalysis?.priority) === 'Cao' ? '#ef4444' : ((report.aiAnalysis?.priority) === 'Trung bình' ? '#f59e0b' : '#10b981'),
+                        fillOpacity: 0.5
                     }}
                   >
                     <Popup>
-                      <div className="text-sm">
-                        <p className="font-bold">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</p>
-                        <p>Mức độ: {report.aiAnalysis?.priority || 'Trung bình'}</p>
-                        <p>{new Date(report.timestamp).toLocaleString()}</p>
+                      <div className="text-xs p-1">
+                        <p className="font-bold text-slate-800">{report.aiAnalysis?.issueType || 'Sự cố môi trường'}</p>
+                        <p className="text-slate-500 mt-1">Mức độ: <span className="font-bold">{report.aiAnalysis?.priority || 'Trung bình'}</span></p>
+                        <p className="text-slate-400 mt-0.5">{new Date(report.timestamp).toLocaleString()}</p>
                       </div>
                     </Popup>
                   </CircleMarker>
@@ -359,11 +398,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
       ) : (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-[700px] flex flex-col overflow-hidden">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-slate-800 flex items-center">
+            <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider">
               <svg className="w-5 h-5 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              Looker Analytics Dashboard
+              Phân tích Looker
             </h3>
             <a 
               href={lookerUrl} 
@@ -386,7 +425,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
               allowFullScreen
             />
           ) : (
-            <div className="flex-grow flex flex-col items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+            <div className="flex-grow flex flex-col items-center justify-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 p-12 text-center">
               <div className="bg-teal-100 p-4 rounded-full mb-4">
                 <svg className="w-12 h-12 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -396,15 +435,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, reports }) => {
               <p className="text-slate-500 max-w-md mb-6">
                 Bạn cần cung cấp URL Dashboard Looker Studio hoặc Looker Embed trong biến môi trường <code>VITE_LOOKER_DASHBOARD_URL</code>.
               </p>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 text-left w-full max-w-lg">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-2">Hướng dẫn kết nối:</p>
-                <ol className="text-xs text-slate-600 space-y-2 list-decimal list-inside">
-                  <li>Mở Dashboard trên Looker Studio.</li>
-                  <li>Chọn <strong>File &gt; Embed report</strong>.</li>
-                  <li>Bật <strong>Enable embedding</strong> và sao chép URL trong phần <code>src="..."</code>.</li>
-                  <li>Dán URL đó vào biến môi trường của ứng dụng.</li>
-                </ol>
-              </div>
             </div>
           )}
         </div>

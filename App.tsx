@@ -187,6 +187,14 @@ const App: React.FC = () => {
   // Auto Monitoring Mode State
   const [isAutoMonitoring, setIsAutoMonitoring] = useState<boolean>(false);
 
+  // Initialize auto-monitoring for mobile on mount
+  useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      setIsAutoMonitoring(true);
+    }
+  }, []);
+
   // Load user from local storage
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -897,7 +905,7 @@ const App: React.FC = () => {
                   )}
                 </div>
 
-                {/* Auto Monitoring Toggle */}
+                {/* Auto Monitoring Toggle - Ẩn trên mobile vì tự động bật */}
                 <button
                   onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
                   className={`hidden lg:flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
