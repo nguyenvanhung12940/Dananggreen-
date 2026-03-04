@@ -12,6 +12,9 @@ import { AllIssuesIcon } from './icons/AllIssuesIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { LandslideIcon } from './icons/LandslideIcon';
 import { FloodIcon } from './icons/FloodIcon';
+import { WeatherOverlay } from './WeatherOverlay';
+import { SunIcon } from './icons/SunIcon';
+import { CloudIcon } from './icons/CloudIcon';
 
 
 interface MainMapViewProps {
@@ -89,6 +92,21 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
   
   const [currentLayerKey, setCurrentLayerKey] = useState<TileLayerKey>('Default');
   const [activeFilter, setActiveFilter] = useState<AIAnalysis['issueType'] | 'Tất cả'>('Tất cả');
+  const [showWeather, setShowWeather] = useState(false);
+  const [mapCenter, setMapCenter] = useState<L.LatLng>(new L.LatLng(initialViewState.center[0], initialViewState.center[1]));
+
+  // Update map center state when map moves
+  useEffect(() => {
+    if (mapRef.current) {
+      const updateCenter = () => {
+        setMapCenter(mapRef.current!.getCenter());
+      };
+      mapRef.current.on('moveend', updateCenter);
+      return () => {
+        mapRef.current?.off('moveend', updateCenter);
+      };
+    }
+  }, []);
 
   const filteredReports = useMemo(() => {
     if (activeFilter === 'Tất cả') {
@@ -313,6 +331,14 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
               </svg>
             </button>
           )}
+          <button
+            onClick={() => setShowWeather(!showWeather)}
+            className={`bg-white/80 backdrop-blur-sm rounded-full p-3 sm:p-4 shadow-lg hover:bg-white transition-all focus:outline-none focus:ring-2 ${showWeather ? 'bg-teal-500 text-white ring-teal-500' : 'text-teal-600 ring-teal-500'}`}
+            aria-label="Xem thời tiết"
+            title="Thời tiết khu vực này"
+          >
+            {showWeather ? <SunIcon className="w-5 h-5 sm:w-6 h-6" /> : <CloudIcon className="w-5 h-5 sm:w-6 h-6" />}
+          </button>
       </div>
       
       <div className="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2 max-w-[calc(100%-80px)]">
@@ -335,8 +361,18 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
       </div>
 
 
-      <div className="absolute bottom-20 left-4 bg-white/80 backdrop-blur-sm p-3 rounded-xl shadow-md z-10 hidden md:block">
-        <h4 className="font-bold text-sm mb-2 text-gray-700">Chú giải</h4>
+      <div className="absolute bottom-20 left-4 flex flex-col space-y-4 z-10">
+        {showWeather && (
+          <WeatherOverlay 
+            lat={mapCenter.lat} 
+            lng={mapCenter.lng} 
+            areaName="Khu vực hiện tại"
+            onClose={() => setShowWeather(false)}
+          />
+        )}
+        
+        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl shadow-md hidden md:block">
+          <h4 className="font-bold text-sm mb-2 text-gray-700">Chú giải</h4>
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <MapPinIcon className="w-5 h-5" style={{color: statusColors['Báo cáo mới']}} />
@@ -364,6 +400,7 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
             <span className="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-teal-700 shadow-sm border border-teal-100 uppercase tracking-wider">Báo cáo</span>
        </div>
     </div>
+  </div>
   );
 };
 

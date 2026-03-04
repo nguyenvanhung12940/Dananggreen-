@@ -10,6 +10,9 @@ import { LandslideIcon } from './icons/LandslideIcon';
 import { FloodIcon } from './icons/FloodIcon';
 import { LifebuoyIcon } from './icons/LifebuoyIcon';
 import { LocationIcon } from './icons/LocationIcon';
+import { WeatherOverlay } from './WeatherOverlay';
+import { SunIcon } from './icons/SunIcon';
+import { CloudIcon } from './icons/CloudIcon';
 
 // Định nghĩa màu sắc cho các trạng thái báo cáo
 const statusColors: Record<ReportStatus, string> = {
@@ -194,6 +197,17 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
   const [activeFilter, setActiveFilter] = useState<string>('Tất cả');
   const [selectedArea, setSelectedArea] = useState<string>('Tất cả khu vực');
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+
+  // Get coordinates for weather
+  const weatherCoords = useMemo(() => {
+    if (selectedArea !== 'Tất cả khu vực') {
+      const reportInArea = reports.find(r => r.area === selectedArea);
+      if (reportInArea) return { lat: reportInArea.latitude, lng: reportInArea.longitude };
+    }
+    if (userLocation) return { lat: userLocation.latitude, lng: userLocation.longitude };
+    return { lat: 16.0678, lng: 108.2208 }; // Default to Da Nang
+  }, [selectedArea, reports, userLocation]);
 
   const availableAreas = useMemo(() => {
     const areas = reports
@@ -491,6 +505,15 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
               <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
             </svg>
           </button>
+
+          {/* Weather Toggle Button */}
+          <button
+            onClick={() => setShowWeather(!showWeather)}
+            className={`absolute left-full ml-2 top-0 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-md border border-gray-100 transition-all ${showWeather ? 'bg-teal-500 text-white' : 'text-teal-600 hover:bg-white'}`}
+            title="Xem thời tiết"
+          >
+            {showWeather ? <SunIcon className="w-4 h-4" /> : <CloudIcon className="w-4 h-4" />}
+          </button>
           
           {isAreaDropdownOpen && (
             <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-40 sm:w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20 py-1 max-h-60 overflow-y-auto">
@@ -530,8 +553,18 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
       </div>
 
       {/* Bottom Left - Legend */}
-      <div className="absolute bottom-20 left-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg z-10 max-w-[200px] border border-gray-100 hidden md:block">
-        <h4 className="font-bold text-xs mb-2 text-gray-500 uppercase tracking-wider">Chú giải</h4>
+      <div className="absolute bottom-20 left-4 flex flex-col space-y-4 z-10">
+        {showWeather && (
+          <WeatherOverlay 
+            lat={weatherCoords.lat} 
+            lng={weatherCoords.lng} 
+            areaName={selectedArea === 'Tất cả khu vực' ? 'Toàn khu vực' : selectedArea}
+            onClose={() => setShowWeather(false)}
+          />
+        )}
+
+        <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg max-w-[200px] border border-gray-100 hidden md:block">
+          <h4 className="font-bold text-xs mb-2 text-gray-500 uppercase tracking-wider">Chú giải</h4>
         <div className="space-y-2">
           <div>
              <div className="flex items-center space-x-2 bg-orange-50 p-1 rounded-lg">
@@ -560,6 +593,7 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
       
       {/* Bottom Right is now clear for Floating AI Assistant */}
     </div>
+  </div>
   );
 };
 

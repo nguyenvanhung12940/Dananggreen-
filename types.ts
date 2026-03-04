@@ -74,4 +74,17 @@ export interface EnvironmentalPOI {
   longitude: number;
 }
 
+export interface WeatherData {
+  temperature: number;
+  condition: string;
+  icon: string;
+  humidity: number;
+  windSpeed: number;
+  forecast: {
+    date: string;
+    temp: number;
+    condition: string;
+  }[];
+}
+
 export type ImageValidationStatus = 'idle' | 'analyzing' | 'valid' | 'invalid';
