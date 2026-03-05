@@ -21,6 +21,7 @@ import LoginView from './components/LoginView';
 import DashboardView from './components/DashboardView';
 import BottomNav from './components/BottomNav';
 import NotificationCenter from './components/NotificationCenter';
+import OrderForm from './components/OrderForm';
 import { SOSIcon } from './components/icons/SOSIcon';
 import { CloudIcon } from './components/icons/CloudIcon';
 import { auth, isFirebaseConfigured } from './firebase';
@@ -192,6 +193,7 @@ const App: React.FC = () => {
 
   // Auto Monitoring Mode State
   const [isAutoMonitoring, setIsAutoMonitoring] = useState<boolean>(false);
+  const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
 
   // Initialize auto-monitoring for mobile on mount
   useEffect(() => {
@@ -885,6 +887,7 @@ const App: React.FC = () => {
                   onSelectEducationTopic={handleSelectEducationTopic}
                   onNavigateToEnvironmentalMap={() => setView('environmentalMap')}
                   onNavigateToSOS={() => setView('sos')}
+                  onOpenOrderForm={() => setIsOrderFormOpen(true)}
                 />;
       case 'map':
         return <MainMapView 
@@ -944,6 +947,7 @@ const App: React.FC = () => {
                   onSelectEducationTopic={handleSelectEducationTopic}
                    onNavigateToEnvironmentalMap={() => setView('environmentalMap')}
                    onNavigateToSOS={() => setView('sos')}
+                   onOpenOrderForm={() => setIsOrderFormOpen(true)}
                 />;
     }
   }
@@ -1078,6 +1082,15 @@ const App: React.FC = () => {
           onClose={() => setIsOfflineModalOpen(false)}
           onReportsChanged={updatePendingReportsCount}
         />
+
+        {isOrderFormOpen && (
+          <OrderForm 
+            onClose={() => setIsOrderFormOpen(false)} 
+            onSuccess={() => {
+              addToast('Đã nhận đơn hàng của bạn!', 'success');
+            }}
+          />
+        )}
       </main>
 
       {/* Bottom Navigation for Mobile */}

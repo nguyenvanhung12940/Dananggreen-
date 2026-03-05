@@ -48,29 +48,61 @@ async function startServer() {
   };
 
   // Helper: Create notifications for authorities
-  const createNotificationsForReport = (report: any) => {
+  const createNotificationsForReport = async (report: any) => {
     try {
       const { id: reportId, area, aiAnalysis, priority } = report;
       const issueType = aiAnalysis?.issueType || report.issueType;
       const reportPriority = aiAnalysis?.priority || report.priority;
 
-      // Find relevant authorities
-      // Authorities are users with roles other than 'citizen'
-      // They should be notified if their area matches the report area or if they manage 'All' areas
-      const authorities = db.prepare(`
-        SELECT id, username, email, phone FROM users 
-        WHERE role NOT IN ('citizen') 
-        AND (area = ? OR area = 'All')
-      `).all(area) as any[];
+      let authorities: any[] = [];
 
-      const insertNotification = db.prepare(`
-        INSERT INTO notifications (userId, reportId, message, type, isRead)
-        VALUES (?, ?, ?, ?, 0)
-      `);
+      // Try Supabase first
+      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, username, email, phone')
+            .neq('role', 'citizen')
+            .or(`area.eq.${area},area.eq.All`);
+          
+          if (!error && data) {
+            authorities = data;
+          }
+        } catch (err) {}
+      }
 
-      authorities.forEach(auth => {
-        const message = `Báo cáo mới: ${issueType} tại ${area}. Mức độ ưu tiên: ${reportPriority}.`;
-        insertNotification.run(auth.id, reportId, message, 'new_report');
+      // Fallback to SQLite if no authorities found or Supabase failed
+      if (authorities.length === 0) {
+        authorities = db.prepare(`
+          SELECT id, username, email, phone FROM users 
+          WHERE role NOT IN ('citizen') 
+          AND (area = ? OR area = 'All')
+        `).all(area) as any[];
+      }
+
+      const message = `Báo cáo mới: ${issueType} tại ${area}. Mức độ ưu tiên: ${reportPriority}.`;
+
+      authorities.forEach(async (auth) => {
+        // Save to Supabase if possible
+        if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+          try {
+            await supabase.from('notifications').insert([{
+              userId: auth.id,
+              reportId,
+              message,
+              type: 'new_report',
+              isRead: 0
+            }]);
+          } catch (err) {}
+        }
+
+        // Save to SQLite
+        try {
+          db.prepare(`
+            INSERT INTO notifications (userId, reportId, message, type, isRead)
+            VALUES (?, ?, ?, ?, 0)
+          `).run(auth.id, reportId, message, 'new_report');
+        } catch (err) {}
         
         // Real-time notification via WebSocket
         broadcast({ 
@@ -469,7 +501,7 @@ let supabaseTableErrorLogged = false;
         if (!error) {
           const fullReport = { ...report, area, timestamp };
           broadcast({ type: 'NEW_REPORT', report: fullReport });
-          createNotificationsForReport(fullReport);
+          await createNotificationsForReport(fullReport);
           return res.status(201).json({ message: 'Report created successfully (Supabase)' });
         }
         
@@ -510,7 +542,7 @@ let supabaseTableErrorLogged = false;
       // Broadcast new report via WebSocket
       const fullReport = { ...report, area, timestamp };
       broadcast({ type: 'NEW_REPORT', report: fullReport });
-      createNotificationsForReport(fullReport);
+      await createNotificationsForReport(fullReport);
 
       res.status(201).json({ message: 'Report created successfully (SQLite)' });
     } catch (error) {
@@ -585,7 +617,7 @@ let supabaseTableErrorLogged = false;
           }]);
           if (!error) {
             results.success++;
-            createNotificationsForReport({ ...report, area, timestamp: reportTimestamp });
+            await createNotificationsForReport({ ...report, area, timestamp: reportTimestamp });
             continue;
           }
           const isTableNotFound = error.code === '42P01' || error.message?.includes('Could not find the table');
@@ -612,7 +644,7 @@ let supabaseTableErrorLogged = false;
           report.status, reportTimestamp, area
         );
         results.success++;
-        createNotificationsForReport({ ...report, area, timestamp: reportTimestamp });
+        await createNotificationsForReport({ ...report, area, timestamp: reportTimestamp });
       } catch (err) {
         console.error('SQLite bulk insert error:', err);
         results.failed++;
@@ -702,6 +734,31 @@ let supabaseTableErrorLogged = false;
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       
+      // Try Supabase first
+      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        try {
+          const { data, error } = await supabase
+            .from('notifications')
+            .select(`
+              *,
+              reports (area, issueType, priority)
+            `)
+            .eq('userId', decoded.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+          
+          if (!error && data) {
+            const formatted = data.map((n: any) => ({
+              ...n,
+              area: n.reports?.area,
+              issueType: n.reports?.issueType,
+              priority: n.reports?.priority
+            }));
+            return res.json(formatted);
+          }
+        } catch (err) {}
+      }
+
       const notifications = db.prepare(`
         SELECT n.*, r.area, r.issueType, r.priority 
         FROM notifications n
@@ -721,6 +778,14 @@ let supabaseTableErrorLogged = false;
   app.patch('/api/notifications/:id/read', async (req, res) => {
     try {
       const { id } = req.params;
+
+      // Try Supabase
+      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        try {
+          await supabase.from('notifications').update({ isRead: 1 }).eq('id', id);
+        } catch (err) {}
+      }
+
       db.prepare('UPDATE notifications SET isRead = 1 WHERE id = ?').run(id);
       res.json({ success: true });
     } catch (error) {
@@ -737,6 +802,13 @@ let supabaseTableErrorLogged = false;
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       
+      // Try Supabase
+      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        try {
+          await supabase.from('notifications').update({ isRead: 1 }).eq('userId', decoded.id);
+        } catch (err) {}
+      }
+
       db.prepare('UPDATE notifications SET isRead = 1 WHERE userId = ?').run(decoded.id);
       res.json({ success: true });
     } catch (error) {
@@ -805,6 +877,70 @@ let supabaseTableErrorLogged = false;
     } catch (err) {
       console.error('Stats error:', err);
       res.status(500).json({ message: 'Lỗi khi tải thống kê' });
+    }
+  });
+
+  // --- Order Management ---
+  app.post('/api/orders', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const { productName, quantity, address, phone } = req.body;
+
+      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        const { data, error } = await supabase
+          .from('orders')
+          .insert([{
+            userId: decoded.id,
+            productName,
+            quantity,
+            address,
+            phone,
+            status: 'pending'
+          }])
+          .select()
+          .single();
+        
+        if (!error) {
+          return res.status(201).json(data);
+        }
+        console.error('Supabase order error:', error);
+      }
+
+      // Fallback or if Supabase not configured
+      res.status(500).json({ message: 'Lỗi khi tạo đơn hàng. Vui lòng kiểm tra cấu hình Supabase.' });
+    } catch (error) {
+      console.error('Order creation error:', error);
+      res.status(500).json({ message: 'Lỗi hệ thống khi tạo đơn hàng' });
+    }
+  });
+
+  app.get('/api/orders', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('userId', decoded.id)
+          .order('created_at', { ascending: false });
+        
+        if (!error) {
+          return res.json(data);
+        }
+      }
+
+      res.json([]);
+    } catch (error) {
+      res.status(500).json({ message: 'Lỗi khi tải đơn hàng' });
     }
   });
 
