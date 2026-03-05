@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import * as L from 'leaflet';
-import { analyzeEnvironmentalImage, askAIAboutEnvironment } from './services/geminiService';
+import { analyzeEnvironmentalImage, askAIAboutEnvironment, generateAIImage } from './services/geminiService';
 import { saveOfflineReport, getOfflineReports, deleteOfflineReport, compressImage } from './services/offlineService';
 import { EnvironmentalReport, AIAnalysis, ReportStatus, ChatMessage, ToastMessage, EducationalTopic, EnvironmentalPOI, EnvironmentalNotification } from './types';
 import MainMapView from './components/MainMapView';
@@ -68,7 +68,7 @@ const initialReports: EnvironmentalReport[] = [
   },
   {
     id: 'rep-static-3',
-    mediaUrl: 'https://suckhoedoisong.qltns.mediacdn.vn/324455921873985536/2024/9/23/z5859592235431720a169becc2f9eb0282cdc140f32ca6-17270890285541051996082.jpg',
+    mediaUrl: 'https://images.unsplash.com/photo-1590012314607-cda9d9b699ae?auto=format&fit=crop&w=800&q=80',
     mediaType: 'image',
     latitude: 15.567,
     longitude: 108.483,
@@ -374,7 +374,7 @@ const App: React.FC = () => {
     if (isAutoMonitoring) {
       addToast('Đã bật Chế độ Giám sát Tự động. Hệ thống sẽ cập nhật dữ liệu mỗi 10 giây.', 'success');
       
-      const generateMockReport = () => {
+      const generateMockReport = async () => {
         const districts = [
           // Đà Nẵng
           { name: 'Hải Châu', lat: 16.047, lng: 108.220, province: 'Đà Nẵng' },
@@ -388,9 +388,7 @@ const App: React.FC = () => {
           { name: 'Tam Kỳ', lat: 15.567, lng: 108.483, province: 'Quảng Nam' },
           { name: 'Hội An', lat: 15.883, lng: 108.333, province: 'Quảng Nam' },
           { name: 'Điện Bàn', lat: 15.883, lng: 108.233, province: 'Quảng Nam' },
-          { name: 'Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
-          { name: 'Trà Liên', lat:15.374914333918765, lng: 108.3242093540805, province: 'Quảng Nam' },
-          { name: 'Thôn Làng Gạch', lat:15.31723282391255, lng: 108.31733779642981, province: 'Quảng Nam'},
+          { name: 'Bắc Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
           { name: 'Duy Xuyên', lat: 15.817, lng: 108.250, province: 'Quảng Nam' },
           { name: 'Đại Lộc', lat: 15.883, lng: 107.983, province: 'Quảng Nam' },
           { name: 'Đông Giang', lat: 15.950, lng: 107.750, province: 'Quảng Nam' },
@@ -408,7 +406,6 @@ const App: React.FC = () => {
         ];
 
         const district = districts[Math.floor(Math.random() * districts.length)];
-        // Thêm độ lệch ngẫu nhiên nhỏ cho tọa độ
         const lat = district.lat + (Math.random() - 0.5) * 0.04;
         const lng = district.lng + (Math.random() - 0.5) * 0.04;
 
@@ -421,6 +418,8 @@ const App: React.FC = () => {
         ];
         const issueType = issueTypes[Math.floor(Math.random() * issueTypes.length)];
         
+        const priority = (Math.random() > 0.7 ? 'Cao' : (Math.random() > 0.4 ? 'Trung bình' : 'Thấp')) as AIAnalysis['priority'];
+        
         const researchSnippets = [
           "Dữ liệu cảm biến cho thấy sự thay đổi bất thường.",
           "Nghiên cứu thực địa ghi nhận tình trạng ô nhiễm cục bộ.",
@@ -432,20 +431,23 @@ const App: React.FC = () => {
         ];
         const snippet = researchSnippets[Math.floor(Math.random() * researchSnippets.length)];
 
-        const priority = (Math.random() > 0.7 ? 'Cao' : (Math.random() > 0.4 ? 'Trung bình' : 'Thấp')) as AIAnalysis['priority'];
+        // Generate AI Image instead of loremflickr
+        const prompt = `${issueType} tại khu vực ${district.name}, ${district.province}, Việt Nam`;
+        let imageUrl = await generateAIImage(prompt);
         
-        const imageKeywords: Record<string, string> = {
-          'Xả rác không đúng nơi quy định': 'trash,waste,pollution',
-          'Ngập lụt': 'flood,water,rain',
-          'Sạt lở đất': 'landslide,mud,mountain',
-          'Cần chăm sóc cây xanh': 'tree,garden,nature',
-          'Khác': 'environment,city,landscape'
-        };
-
-        const keyword = `${imageKeywords[issueType] || 'environment'},vietnam`;
-        const seed = Math.floor(Math.random() * 1000);
-        // Use loremflickr with 'vietnam' tag for better context
-        const imageUrl = `https://loremflickr.com/800/600/${keyword}?lock=${seed}`;
+        // Fallback to loremflickr if AI generation fails
+        if (!imageUrl) {
+          const imageKeywords: Record<string, string> = {
+            'Xả rác không đúng nơi quy định': 'trash,waste,pollution',
+            'Ngập lụt': 'flood,water,rain',
+            'Sạt lở đất': 'landslide,mud,mountain',
+            'Cần chăm sóc cây xanh': 'tree,garden,nature',
+            'Khác': 'environment,city,landscape'
+          };
+          const keyword = `${imageKeywords[issueType] || 'environment'},vietnam`;
+          const seed = Math.floor(Math.random() * 1000);
+          imageUrl = `https://loremflickr.com/800/600/${keyword}?lock=${seed}`;
+        }
 
         const newReport: EnvironmentalReport = {
           id: `rep-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -765,6 +767,7 @@ const App: React.FC = () => {
         role: 'model',
         content: aiResponse.text,
         groundingChunks: aiResponse.groundingChunks,
+        imageUrl: aiResponse.imageUrl,
       };
       setChatMessages(prev => [...prev, newAiMessage]);
     } catch (error) {

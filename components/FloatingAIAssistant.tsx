@@ -166,6 +166,11 @@ const FloatingAIAssistant: React.FC<FloatingAIAssistantProps> = ({ isOpen, onTog
                                                 : 'bg-white text-slate-700 border border-slate-100 rounded-[1.5rem] rounded-tl-none font-medium'
                                             }`}>
                                                 <p className="whitespace-pre-wrap">{msg.content}</p>
+                                                {msg.imageUrl && (
+                                                    <div className="mt-3 rounded-xl overflow-hidden border border-slate-100 shadow-sm">
+                                                        <img src={msg.imageUrl} alt="AI Generated" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
+                                                    </div>
+                                                )}
                                             </div>
                                             
                                             {msg.groundingChunks && msg.groundingChunks.length > 0 && (

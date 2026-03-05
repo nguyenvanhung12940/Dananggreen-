@@ -133,13 +133,65 @@ export const analyzeEnvironmentalImage = async (base64Image: string, mimeType: s
   return callGemini();
 };
 
+/**
+ * Generates a realistic image of an environmental issue using Gemini 2.5 Flash Image.
+ */
+export const generateAIImage = async (prompt: string): Promise<string | null> => {
+  const ai = getAI();
+  if (!ai) return null;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          {
+            text: `Tạo một hình ảnh thực tế, chất lượng cao về sự cố môi trường sau đây tại Việt Nam: ${prompt}. 
+            Hình ảnh nên trông giống như được chụp bằng điện thoại bởi một người dân, chân thực, không quá nghệ thuật, tập trung vào vấn đề môi trường.`,
+          },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "4:3",
+        },
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Lỗi khi tạo hình ảnh với AI:", error);
+    return null;
+  }
+};
+
 
 import { askOpenAI } from './openaiService';
 
 export const askAIAboutEnvironment = async (
   question: string,
   userLocation: { latitude: number; longitude: number } | null
-): Promise<{ text: string, groundingChunks?: GroundingChunk[] }> => {
+): Promise<{ text: string, groundingChunks?: GroundingChunk[], imageUrl?: string }> => {
+  // Check if user is asking for image generation
+  const imageKeywords = ['tạo hình ảnh', 'vẽ hình', 'generate image', 'show me a picture', 'hình ảnh về', 'ảnh về'];
+  const isImageRequest = imageKeywords.some(keyword => question.toLowerCase().includes(keyword));
+
+  if (isImageRequest) {
+    const imageUrl = await generateAIImage(question);
+    if (imageUrl) {
+      return {
+        text: `Đây là hình ảnh tôi đã tạo cho bạn về: "${question}". Hy vọng nó giúp bạn hình dung rõ hơn về vấn đề này.`,
+        imageUrl: imageUrl,
+        groundingChunks: []
+      };
+    }
+  }
+
   // Check for OpenAI API Key first
   if (process.env.OPENAI_API_KEY) {
       try {

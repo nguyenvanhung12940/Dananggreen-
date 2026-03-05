@@ -43,6 +43,7 @@ export interface ChatMessage {
   content: string;
   suggestions?: string[];
   groundingChunks?: GroundingChunk[];
+  imageUrl?: string;
 }
 
 export interface ToastMessage {
