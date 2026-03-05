@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 import { LogoIcon } from './icons/LogoIcon';
+import { auth, isFirebaseConfigured } from '../firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  GoogleAuthProvider,
+  updateProfile
+} from 'firebase/auth';
 
 interface LoginViewProps {
   onLogin: (user: any) => void;
@@ -122,67 +130,97 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     );
   };
 
+  const handleGoogleLogin = async () => {
+    if (!isFirebaseConfigured) {
+      setError('Firebase chưa được cấu hình. Vui lòng thiết lập API Key.');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const userData = {
+        username: user.email,
+        role: 'citizen',
+        area: 'All',
+        organizationName: user.displayName || 'Người dùng Google',
+        uid: user.uid
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      onLogin(userData);
+    } catch (err: any) {
+      setError(err.message || 'Đăng nhập Google thất bại');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setSuccess('');
 
-    // Hardcoded credentials for Officials
-    const validUsers = [
-      { username: 'admin@dananggreen.vn', password: '123456', role: 'environment_department', organizationName: 'Hệ thống Đà Nẵng Green', area: 'All' },
-      { username: 'quanly@dananggreen.vn', password: '123456', role: 'department_manager', organizationName: 'Ban Quản lý Môi trường', area: 'Hải Châu' },
-      { username: 'nguoidan1@gmail.com', password: '123456', role: 'citizen', organizationName: 'Người dân', area: 'Hải Châu' },
-      { username: 'nguoidan2@gmail.com', password: '123456', role: 'citizen', organizationName: 'Người dân', area: 'Thanh Khê' },
-    ];
+    try {
+      if (isRegistering) {
+        if (!isFirebaseConfigured) {
+          setError('Firebase chưa được cấu hình. Vui lòng thiết lập API Key.');
+          setIsLoading(false);
+          return;
+        }
+        const userCredential = await createUserWithEmailAndPassword(auth, username, password);
+        const user = userCredential.user;
+        
+        await updateProfile(user, {
+          displayName: organizationName
+        });
 
-    const matchedUser = validUsers.find(u => u.username === username && u.password === password);
-
-    if (!isRegistering && matchedUser) {
-      // Simulate network delay
-      setTimeout(() => {
         const userData = {
-          ...matchedUser,
-          token: 'auth-token-' + Date.now()
+          username: user.email,
+          role,
+          area,
+          organizationName,
+          uid: user.uid
         };
-        localStorage.setItem('token', userData.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setSuccess('Đăng ký thành công!');
+        onLogin(userData);
+      } else {
+        if (!isFirebaseConfigured) {
+          // Fallback to local login for demo if Firebase is missing
+          if ((username === 'admin@dananggreen.vn' || username === 'quanly@dananggreen.vn') && password === '123456') {
+            const userData = {
+              username,
+              role: username === 'admin@dananggreen.vn' ? 'admin' : 'environment_department',
+              area: 'All',
+              organizationName: username === 'admin@dananggreen.vn' ? 'Quản trị hệ thống' : 'Sở Tài nguyên Môi trường',
+              uid: 'demo-uid'
+            };
+            localStorage.setItem('user', JSON.stringify(userData));
+            onLogin(userData);
+            return;
+          }
+          setError('Firebase chưa được cấu hình. Vui lòng thiết lập API Key.');
+          setIsLoading(false);
+          return;
+        }
+        const userCredential = await signInWithEmailAndPassword(auth, username, password);
+        const user = userCredential.user;
+        
+        const userData = {
+          username: user.email,
+          role: 'citizen', // Default, should be fetched from DB in real app
+          area: 'All',
+          organizationName: user.displayName || 'Người dùng',
+          uid: user.uid
+        };
         localStorage.setItem('user', JSON.stringify(userData));
         onLogin(userData);
-        setIsLoading(false);
-      }, 800);
-      return;
-    }
-
-    const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
-    const body = isRegistering 
-      ? { username, password, role, area, organizationName }
-      : { username, password };
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        if (isRegistering) {
-          setSuccess(data.message);
-          setIsRegistering(false);
-          // Clear sensitive fields
-          setPassword('');
-        } else {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          onLogin(data.user);
-        }
-      } else {
-        setError(data.message || 'Thao tác thất bại');
       }
-    } catch (err) {
-      setError('Lỗi kết nối server');
+    } catch (err: any) {
+      setError(err.message || 'Thao tác thất bại');
     } finally {
       setIsLoading(false);
     }
@@ -214,6 +252,13 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </div>
             <h2 className="text-4xl font-black tracking-tighter uppercase mb-2">DA NANG GREEN</h2>
             <p className="text-brand-100 text-xs font-bold uppercase tracking-widest opacity-80">Hệ thống Quản lý Môi trường Thông minh</p>
+            {!isFirebaseConfigured && (
+              <div className="mt-4 px-4 py-2 bg-amber-500/20 border border-amber-500/30 rounded-xl backdrop-blur-sm">
+                <p className="text-[10px] font-bold text-amber-200 uppercase tracking-wider">
+                  ⚠️ Chế độ Demo (Firebase chưa cấu hình)
+                </p>
+              </div>
+            )}
           </div>
         </div>
         
@@ -341,6 +386,18 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             >
               {isLoading ? 'Đang xử lý...' : (isRegistering ? 'Đăng ký tài khoản' : 'Đăng nhập Hệ thống')}
             </button>
+
+            {!isRegistering && (
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 bg-white text-slate-700 font-bold py-4 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all duration-300 shadow-sm"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                <span>Tiếp tục với Google</span>
+              </button>
+            )}
 
             {!isRegistering && (
               <div className="mt-10 p-6 bg-slate-50/50 rounded-3xl border border-slate-100">

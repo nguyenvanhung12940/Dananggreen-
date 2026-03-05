@@ -23,12 +23,14 @@ import BottomNav from './components/BottomNav';
 import NotificationCenter from './components/NotificationCenter';
 import { SOSIcon } from './components/icons/SOSIcon';
 import { CloudIcon } from './components/icons/CloudIcon';
+import { auth, isFirebaseConfigured } from './firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Dữ liệu mẫu tĩnh (Static Data) - Chỉ dùng để hiển thị khi người dùng chưa nhập gì
 const initialReports: EnvironmentalReport[] = [
   {
     id: 'rep-static-1',
-    mediaUrl: 'https://picsum.photos/seed/trash1/800/600',
+    mediaUrl: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=800&q=80',
     mediaType: 'image',
     latitude: 16.047,
     longitude: 108.220,
@@ -47,7 +49,7 @@ const initialReports: EnvironmentalReport[] = [
   },
   {
     id: 'rep-static-2',
-    mediaUrl: 'https://picsum.photos/seed/flood1/800/600',
+    mediaUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
     mediaType: 'image',
     latitude: 15.986,
     longitude: 108.067,
@@ -66,7 +68,7 @@ const initialReports: EnvironmentalReport[] = [
   },
   {
     id: 'rep-static-3',
-    mediaUrl: 'https://picsum.photos/seed/landslide1/800/600',
+    mediaUrl: 'https://images.unsplash.com/photo-1590012314607-cda9d9b699ae?auto=format&fit=crop&w=800&q=80',
     mediaType: 'image',
     latitude: 15.567,
     longitude: 108.483,
@@ -199,12 +201,34 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Load user from local storage
+  // Load user from local storage and listen for auth state changes
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (!isFirebaseConfigured) return;
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          const basicUser = {
+            username: firebaseUser.email,
+            role: 'citizen',
+            area: 'All',
+            organizationName: firebaseUser.displayName || 'Người dùng',
+            uid: firebaseUser.uid
+          };
+          setUser(basicUser);
+          localStorage.setItem('user', JSON.stringify(basicUser));
+        }
+      } else {
+        setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Fetch notifications for authorities
@@ -791,12 +815,21 @@ const App: React.FC = () => {
     setView('dashboard');
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    setNotifications([]);
-    setView('home');
+  const handleLogout = async () => {
+    try {
+      if (isFirebaseConfigured) {
+        await signOut(auth);
+      }
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      setNotifications([]);
+      setView('home');
+      addToast('Đã đăng xuất thành công', 'success');
+    } catch (error) {
+      console.error("Logout error:", error);
+      addToast('Lỗi khi đăng xuất', 'error');
+    }
   };
 
   const handleMarkNotificationAsRead = async (id: number) => {
@@ -955,17 +988,20 @@ const App: React.FC = () => {
                     <span className="text-brand-600">{userPoints}</span>
                 </div>
 
-                {/* Auth & Notifications - Desktop Only */}
-                <div className="hidden md:flex items-center space-x-3 border-l border-slate-200 pl-4 ml-2">
-                  {user && user.role !== 'citizen' && (
+                {/* Notifications - Mobile & Desktop */}
+                {user && user.role !== 'citizen' && (
+                  <div className="flex items-center ml-2">
                     <NotificationCenter 
                       notifications={notifications}
                       onMarkAsRead={handleMarkNotificationAsRead}
                       onMarkAllAsRead={handleMarkAllNotificationsAsRead}
                       onSelectReport={handleSelectReportFromNotification}
                     />
-                  )}
-                  
+                  </div>
+                )}
+
+                {/* Auth - Desktop Only */}
+                <div className="hidden md:flex items-center space-x-3 border-l border-slate-200 pl-4 ml-2">
                   {user ? (
                     <div className="flex items-center space-x-3">
                       <button 
