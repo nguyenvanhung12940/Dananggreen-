@@ -390,7 +390,7 @@ const App: React.FC = () => {
           { name: 'Tam Kỳ', lat: 15.567, lng: 108.483, province: 'Quảng Nam' },
           { name: 'Hội An', lat: 15.883, lng: 108.333, province: 'Quảng Nam' },
           { name: 'Điện Bàn', lat: 15.883, lng: 108.233, province: 'Quảng Nam' },
-          { name: 'Bắc Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
+          { name: 'Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
           { name: 'Duy Xuyên', lat: 15.817, lng: 108.250, province: 'Quảng Nam' },
           { name: 'Đại Lộc', lat: 15.883, lng: 107.983, province: 'Quảng Nam' },
           { name: 'Đông Giang', lat: 15.950, lng: 107.750, province: 'Quảng Nam' },
