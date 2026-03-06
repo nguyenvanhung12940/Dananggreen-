@@ -98,17 +98,46 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   }, [filteredReports]);
 
   useEffect(() => {
-    fetch('/api/health').then(res => res.json()).then(setHealthStatus).catch(console.error);
-    
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetch('/api/orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(setOrders)
-      .catch(console.error);
-    }
+    const fetchHealth = async (retries = 3) => {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          setHealthStatus(data);
+        } else if (retries > 0) {
+          setTimeout(() => fetchHealth(retries - 1), 2000);
+        }
+      } catch (err) {
+        console.error("Health fetch failed:", err);
+        if (retries > 0) {
+          setTimeout(() => fetchHealth(retries - 1), 2000);
+        }
+      }
+    };
+
+    const fetchOrders = async (retries = 3) => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/orders', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(data);
+        } else if (retries > 0) {
+          setTimeout(() => fetchOrders(retries - 1), 2000);
+        }
+      } catch (err) {
+        console.error("Orders fetch failed:", err);
+        if (retries > 0) {
+          setTimeout(() => fetchOrders(retries - 1), 2000);
+        }
+      }
+    };
+
+    fetchHealth();
+    fetchOrders();
   }, []);
 
   if (!stats) return <div className="p-8 text-center">Không có dữ liệu.</div>;

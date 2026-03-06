@@ -234,7 +234,7 @@ const App: React.FC = () => {
   }, []);
 
   // Fetch notifications for authorities
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (retries = 3) => {
     if (!user || user.role === 'citizen') return;
     try {
       const token = localStorage.getItem('token');
@@ -244,9 +244,14 @@ const App: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setNotifications(data);
+      } else if (retries > 0) {
+        setTimeout(() => fetchNotifications(retries - 1), 2000);
       }
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      if (retries > 0) {
+        setTimeout(() => fetchNotifications(retries - 1), 2000);
+      }
     }
   };
 
@@ -257,7 +262,7 @@ const App: React.FC = () => {
   }, [user]);
 
   // Fetch reports from API
-  const fetchReports = async () => {
+  const fetchReports = async (retries = 3) => {
     if (!isOnline) return;
     try {
       const response = await fetch('/api/reports');
@@ -268,9 +273,16 @@ const App: React.FC = () => {
           timestamp: new Date(report.timestamp)
         }));
         setReports(parsedData);
+      } else if (retries > 0) {
+        console.warn(`Fetch reports failed with status ${response.status}. Retrying...`);
+        setTimeout(() => fetchReports(retries - 1), 2000);
       }
     } catch (error) {
       console.error("Failed to fetch reports:", error);
+      if (retries > 0) {
+        console.warn(`Fetch reports threw error. Retrying in 2s... (${retries} left)`);
+        setTimeout(() => fetchReports(retries - 1), 2000);
+      }
     }
   };
 
@@ -390,7 +402,7 @@ const App: React.FC = () => {
           { name: 'Tam Kỳ', lat: 15.567, lng: 108.483, province: 'Quảng Nam' },
           { name: 'Hội An', lat: 15.883, lng: 108.333, province: 'Quảng Nam' },
           { name: 'Điện Bàn', lat: 15.883, lng: 108.233, province: 'Quảng Nam' },
-          { name: 'Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
+          { name: 'Bắc Trà My', lat: 15.283, lng: 108.217, province: 'Quảng Nam' },
           { name: 'Duy Xuyên', lat: 15.817, lng: 108.250, province: 'Quảng Nam' },
           { name: 'Đại Lộc', lat: 15.883, lng: 107.983, province: 'Quảng Nam' },
           { name: 'Đông Giang', lat: 15.950, lng: 107.750, province: 'Quảng Nam' },
@@ -887,7 +899,14 @@ const App: React.FC = () => {
                   onSelectEducationTopic={handleSelectEducationTopic}
                   onNavigateToEnvironmentalMap={() => setView('environmentalMap')}
                   onNavigateToSOS={() => setView('sos')}
-                  onOpenOrderForm={() => setIsOrderFormOpen(true)}
+                  onOpenOrderForm={() => {
+                    if (!user) {
+                      addToast('Vui lòng đăng nhập để đổi quà!', 'warning');
+                      setView('login');
+                    } else {
+                      setIsOrderFormOpen(true);
+                    }
+                  }}
                 />;
       case 'map':
         return <MainMapView 
@@ -947,7 +966,14 @@ const App: React.FC = () => {
                   onSelectEducationTopic={handleSelectEducationTopic}
                    onNavigateToEnvironmentalMap={() => setView('environmentalMap')}
                    onNavigateToSOS={() => setView('sos')}
-                   onOpenOrderForm={() => setIsOrderFormOpen(true)}
+                   onOpenOrderForm={() => {
+                     if (!user) {
+                       addToast('Vui lòng đăng nhập để đổi quà!', 'warning');
+                       setView('login');
+                     } else {
+                       setIsOrderFormOpen(true);
+                     }
+                   }}
                 />;
     }
   }

@@ -30,7 +30,7 @@ export const WeatherOverlay: React.FC<WeatherOverlayProps> = ({ lat, lng, areaNa
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchWeather = async () => {
+    const fetchWeather = async (retries = 3) => {
       setLoading(true);
       setError(null);
       try {
@@ -62,7 +62,12 @@ export const WeatherOverlay: React.FC<WeatherOverlayProps> = ({ lat, lng, areaNa
           } as any);
         }
       } catch (err: any) {
-        setError(err.message);
+        console.error("Weather fetch failed:", err);
+        if (retries > 0) {
+          setTimeout(() => fetchWeather(retries - 1), 2000);
+        } else {
+          setError(err.message);
+        }
       } finally {
         setLoading(false);
       }

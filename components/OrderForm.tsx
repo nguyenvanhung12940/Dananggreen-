@@ -27,6 +27,13 @@ const OrderForm: React.FC<OrderFormProps> = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Bạn cần đăng nhập để thực hiện đổi quà.');
+      return;
+    }
+
     if (!address || !phone) {
       setError('Vui lòng nhập đầy đủ thông tin giao hàng.');
       return;

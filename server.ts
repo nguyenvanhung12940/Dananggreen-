@@ -12,13 +12,31 @@ import { supabase } from './services/supabaseClient';
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-change-me';
 
+console.log('Starting server.ts...');
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 async function startServer() {
+  console.log('Initializing startServer()...');
   const app = express();
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
   // Initialize Database
-  initDb();
+  try {
+    console.log('Initializing Database...');
+    initDb();
+    console.log('Database initialized.');
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  }
 
   app.use(cors());
   app.use(express.json({ limit: '100mb' })); // Increase limit for base64 images and videos
@@ -729,10 +747,17 @@ let supabaseTableErrorLogged = false;
   app.get('/api/notifications', async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' });
       
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (!token || token === 'null' || token === 'undefined') return res.status(401).json({ message: 'Token missing or invalid' });
+      
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
       
       // Try Supabase first
       if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
@@ -797,10 +822,17 @@ let supabaseTableErrorLogged = false;
   app.post('/api/notifications/read-all', async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' });
       
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (!token || token === 'null' || token === 'undefined') return res.status(401).json({ message: 'Token missing or invalid' });
+
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
       
       // Try Supabase
       if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
@@ -884,10 +916,18 @@ let supabaseTableErrorLogged = false;
   app.post('/api/orders', async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' });
       
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (!token || token === 'null' || token === 'undefined') return res.status(401).json({ message: 'Token missing or invalid' });
+
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+      
       const { productName, quantity, address, phone } = req.body;
 
       if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
@@ -921,10 +961,17 @@ let supabaseTableErrorLogged = false;
   app.get('/api/orders', async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ message: 'Unauthorized' });
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' });
       
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (!token || token === 'null' || token === 'undefined') return res.status(401).json({ message: 'Token missing or invalid' });
+
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
 
       if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
         const { data, error } = await supabase
@@ -962,8 +1009,13 @@ let supabaseTableErrorLogged = false;
   }
 
   if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    console.log(`Attempting to listen on port ${PORT}...`);
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
+    
+    server.on('error', (err) => {
+      console.error('Server failed to start:', err);
     });
   }
 
