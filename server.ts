@@ -459,7 +459,7 @@ let supabaseTableErrorLogged = false;
       'Núi Thành': { lat: 15.4212, lng: 108.6512 },
       'Phú Ninh': { lat: 15.5112, lng: 108.4512 },
       'Tiên Phước': { lat: 15.4812, lng: 108.3112 },
-      'Bắc Trà My': { lat: 15.28, lng: 108.23 },
+      'Trà My': { lat: 15.28, lng: 108.23 },
       'Nam Trà My': { lat: 15.05, lng: 108.08 },
       'Phước Sơn': { lat: 15.35, lng: 107.85 },
       'Hiệp Đức': { lat: 15.55, lng: 108.05 },
@@ -590,7 +590,9 @@ let supabaseTableErrorLogged = false;
       'Cẩm Lệ': { lat: 15.9988, lng: 108.1916 },
       'Hòa Vang': { lat: 15.9867, lng: 108.0671 },
       'Tam Kỳ': { lat: 15.5647, lng: 108.4811 },
-      'Hội An': { lat: 15.8801, lng: 108.3380 }
+      'Hội An': { lat: 15.8801, lng: 108.3380 },
+      'Đông Giang': { lat: 15.92916, lng: 107.63919 }
+      
     };
 
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
