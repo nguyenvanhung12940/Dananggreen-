@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import * as L from 'leaflet';
 import { analyzeEnvironmentalImage, askAIAboutEnvironment, generateAIImage } from './services/geminiService';
 import { saveOfflineReport, getOfflineReports, deleteOfflineReport, compressImage } from './services/offlineService';
+import { findNearestAuthority } from './services/locationUtils';
 import { EnvironmentalReport, AIAnalysis, ReportStatus, ChatMessage, ToastMessage, EducationalTopic, EnvironmentalPOI, EnvironmentalNotification } from './types';
 import MainMapView from './components/MainMapView';
 import ReportForm from './components/ReportForm';
@@ -265,14 +266,26 @@ const App: React.FC = () => {
   const fetchReports = async (retries = 3) => {
     if (!isOnline) return;
     try {
+      console.log("Fetching reports from /api/reports...");
       const response = await fetch('/api/reports');
+      console.log(`Fetch reports status: ${response.status} ${response.statusText}`);
+      
+      const contentType = response.headers.get("content-type");
+      console.log(`Fetch reports content-type: ${contentType}`);
+
       if (response.ok) {
-        const data = await response.json();
-        const parsedData = data.map((report: any) => ({
-          ...report,
-          timestamp: new Date(report.timestamp)
-        }));
-        setReports(parsedData);
+        const text = await response.text();
+        try {
+          const data = JSON.parse(text);
+          const parsedData = data.map((report: any) => ({
+            ...report,
+            timestamp: new Date(report.timestamp)
+          }));
+          setReports(parsedData);
+        } catch (parseError) {
+          console.error("Failed to parse reports JSON. Response text starts with:", text.substring(0, 100));
+          throw parseError;
+        }
       } else if (retries > 0) {
         console.warn(`Fetch reports failed with status ${response.status}. Retrying...`);
         setTimeout(() => fetchReports(retries - 1), 2000);
@@ -662,9 +675,13 @@ const App: React.FC = () => {
         addToast('Đã lưu báo cáo vào bộ nhớ tạm. Sẽ tự động gửi khi có mạng.', 'success');
         
         // SMS Fallback Prompt
-        if (window.confirm("Bạn đang offline. Bạn có muốn gửi tin nhắn SMS khẩn cấp kèm tọa độ GPS đến tổng đài không?")) {
+        const nearestAuth = findNearestAuthority(coords.latitude, coords.longitude);
+        const authName = nearestAuth ? nearestAuth.name : "Ban quản lý địa phương";
+        const authPhone = nearestAuth ? nearestAuth.phone : "1022";
+
+        if (window.confirm(`Bạn đang offline. Bạn có muốn gửi tin nhắn SMS khẩn cấp kèm tọa độ GPS đến ${authName} (${authPhone}) không?`)) {
             const smsBody = `SOS! Su co moi truong tai: ${coords.latitude},${coords.longitude}. Mo ta: ${userDescription}`;
-            window.open(`sms:1022?body=${encodeURIComponent(smsBody)}`);
+            window.open(`sms:${authPhone}?body=${encodeURIComponent(smsBody)}`);
         }
 
       } else {
@@ -1084,7 +1101,7 @@ const App: React.FC = () => {
         </header>
       )}
       
-      <main className={`flex-grow relative flex flex-col ${view === 'map' || view === 'environmentalMap' ? 'h-[calc(100vh-64px)] md:h-screen' : ''} pb-20 md:pb-0`}>
+      <main className={`flex-grow relative flex flex-col ${view === 'map' || view === 'environmentalMap' ? 'h-[100dvh]' : ''} pb-20 md:pb-0`}>
          {renderContent()}
         
         {selectedReport && (

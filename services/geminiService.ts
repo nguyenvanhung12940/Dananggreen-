@@ -264,7 +264,7 @@ Nguyên tắc chuyên môn:
       try {
         // Fallback to Gemini 2.5 Flash
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3-flash-preview",
           contents: question,
           config,
         });
@@ -331,7 +331,7 @@ export const geocodeWithAI = async (query: string): Promise<{ lat: number; lng: 
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Bạn là một chuyên gia địa lý cho thành phố Đà Nẵng, Việt Nam. Dựa trên truy vấn của người dùng, hãy xác định vị trí có khả năng nhất và cung cấp tọa độ địa lý của nó. Truy vấn: "${query}"`,
       config: {
         responseMimeType: "application/json",

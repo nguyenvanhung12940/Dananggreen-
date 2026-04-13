@@ -144,6 +144,11 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
         zoomControl: false, // Tắt zoom control mặc định để đặt lại vị trí nếu cần
       });
 
+      // Đảm bảo bản đồ hiển thị đúng kích thước sau khi render
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+
       // Lắng nghe các chuyển động của bản đồ để lưu state
       map.on('moveend', () => {
         if (mapRef.current) { // Đảm bảo bản đồ tồn tại
@@ -178,8 +183,19 @@ const MainMapView: React.FC<MainMapViewProps> = ({ reports, userLocation, onSele
       });
     }
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    });
+
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     // Dọn dẹp khi unmount
     return () => {
+      resizeObserver.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

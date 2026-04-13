@@ -1,3 +1,4 @@
+console.log('--- SERVER.TS EVALUATION START ---');
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import cors from 'cors';
@@ -9,8 +10,48 @@ import db, { initDb } from './database';
 import { EnvironmentalReport } from './types';
 import { supabase } from './services/supabaseClient';
 
+import dns from 'dns';
+import { promisify } from 'util';
+
+const lookup = promisify(dns.lookup);
+
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-change-me';
+
+// Global state for Supabase backoff to avoid log spam on connection errors
+let supabaseBackoffUntil = 0;
+const SUPABASE_BACKOFF_DURATION = 60000; // 1 minute backoff
+
+const checkSupabaseDns = async (url: string) => {
+  try {
+    const hostname = new URL(url).hostname;
+    await lookup(hostname);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+const shouldTrySupabase = () => {
+  return !!(supabase && Date.now() > supabaseBackoffUntil);
+};
+
+const handleSupabaseError = (error: any, method: string, url: string) => {
+  if (!error) return;
+  
+  // Silence "Table not found" errors as they are expected before initial setup
+  const isTableNotFound = error.code === '42P01' || (error.message && error.message.includes('Could not find the table'));
+  if (!isTableNotFound) {
+    const errorMessage = error.message || String(error);
+    
+    if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('fetch failed')) {
+      console.warn(`Supabase Connection Error [${method} ${url}]: DNS lookup failed for "${process.env.VITE_SUPABASE_URL}". This usually means the URL is incorrect or the project is deleted. Backing off for 1 min.`);
+      supabaseBackoffUntil = Date.now() + SUPABASE_BACKOFF_DURATION;
+    } else {
+      console.warn(`Supabase fetch failed [${method} ${url}]:`, errorMessage);
+    }
+  }
+};
 
 console.log('Starting server.ts...');
 
@@ -33,6 +74,34 @@ async function startServer() {
     console.log('Initializing Database...');
     initDb();
     console.log('Database initialized.');
+    
+    if (process.env.VITE_SUPABASE_URL) {
+      const url = process.env.VITE_SUPABASE_URL;
+      console.log(`[CONFIG] Supabase URL: ${url}`);
+      console.log(`[CONFIG] Supabase Key: ${process.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing'}`);
+      
+      if (!url.startsWith('https://')) {
+        console.warn('CRITICAL: Supabase URL MUST start with https://');
+      }
+      if (!url.includes('.supabase.co')) {
+        console.warn('CRITICAL: Supabase URL MUST end with .supabase.co');
+      }
+      if (url.includes('fpgvshoxoxnebouesuct')) {
+        console.log('[CONFIG] Using project fpgvshoxoxnebouesuct.');
+      }
+
+      // Pre-flight DNS check
+      checkSupabaseDns(url).then(isValid => {
+        if (!isValid) {
+          console.warn(`CRITICAL: Supabase DNS lookup failed for ${url}. Backing off for 1 min.`);
+          supabaseBackoffUntil = Date.now() + SUPABASE_BACKOFF_DURATION;
+        } else {
+          console.log('Supabase DNS lookup successful.');
+        }
+      });
+    } else {
+      console.log('Supabase URL not configured.');
+    }
   } catch (err) {
     console.error('Failed to initialize database:', err);
     process.exit(1);
@@ -75,7 +144,7 @@ async function startServer() {
       let authorities: any[] = [];
 
       // Try Supabase first
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         try {
           const { data, error } = await supabase
             .from('users')
@@ -102,7 +171,7 @@ async function startServer() {
 
       authorities.forEach(async (auth) => {
         // Save to Supabase if possible
-        if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        if (supabase) {
           try {
             await supabase.from('notifications').insert([{
               userId: auth.id,
@@ -148,6 +217,13 @@ async function startServer() {
   };
 
   // --- API Routes ---
+  
+  // Supabase Reset Backoff
+  app.post('/api/supabase/reset-backoff', (req, res) => {
+    supabaseBackoffUntil = 0;
+    console.log('Supabase backoff reset by user.');
+    res.json({ message: 'Supabase backoff reset' });
+  });
 
   // Health check for Vercel and Supabase
   app.get('/api/health', async (req, res) => {
@@ -157,21 +233,35 @@ async function startServer() {
       supabase: 'not_configured'
     };
 
-    if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
-      try {
-        const { error } = await supabase.from('reports').select('id').limit(1);
-        if (error) {
-          status.supabase = 'error';
-          status.supabaseError = error.message;
-          if (error.message.includes('Could not find the table')) {
-            status.supabaseAdvice = 'Bạn cần chạy lệnh SQL để tạo bảng "reports" trên Supabase.';
+    if (supabase) {
+      if (Date.now() < supabaseBackoffUntil) {
+        status.supabase = 'backing_off';
+        status.supabaseError = 'DNS lookup failed recently. Backing off to prevent log spam.';
+        status.supabaseAdvice = 'Lỗi kết nối DNS. Vui lòng kiểm tra lại VITE_SUPABASE_URL trong phần Settings và nhấn "Thử lại".';
+      } else {
+        try {
+          const { error } = await supabase.from('reports').select('id').limit(1);
+          if (error) {
+            status.supabase = 'error';
+            status.supabaseError = error.message;
+            if (error.message.includes('Could not find the table')) {
+              status.supabaseAdvice = 'Bạn cần chạy lệnh SQL để tạo bảng "reports" trên Supabase.';
+            } else if (error.message.includes('ENOTFOUND') || error.message.includes('fetch failed')) {
+              status.supabaseAdvice = 'Lỗi kết nối DNS. Vui lòng kiểm tra lại VITE_SUPABASE_URL trong phần Settings.';
+              supabaseBackoffUntil = Date.now() + SUPABASE_BACKOFF_DURATION;
+            }
+          } else {
+            status.supabase = 'connected';
           }
-        } else {
-          status.supabase = 'connected';
+        } catch (err: any) {
+          status.supabase = 'exception';
+          const errMsg = err.message || String(err);
+          status.supabaseError = errMsg;
+          if (errMsg.includes('ENOTFOUND')) {
+            status.supabaseAdvice = 'Không tìm thấy địa chỉ máy chủ Supabase (DNS Error). Kiểm tra lại URL.';
+            supabaseBackoffUntil = Date.now() + SUPABASE_BACKOFF_DURATION;
+          }
         }
-      } catch (err: any) {
-        status.supabase = 'exception';
-        status.supabaseError = err.message;
       }
     }
 
@@ -191,7 +281,7 @@ async function startServer() {
       let user: any = null;
 
       // Try Supabase first
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { data, error } = await supabase
           .from('users')
           .select('*')
@@ -250,7 +340,7 @@ async function startServer() {
       const hashedPassword = bcrypt.hashSync(password, 10);
 
       // Try Supabase first
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         try {
           // Check if user exists in Supabase
           const { data: existingUser } = await supabase
@@ -333,7 +423,7 @@ let supabaseTableErrorLogged = false;
         const hashedPassword = bcrypt.hashSync(password, 10);
 
         // Try Supabase first
-        if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+        if (supabase) {
           try {
             const { data: existingUser } = await supabase.from('users').select('username').eq('username', username).single();
             if (!existingUser) {
@@ -383,33 +473,40 @@ let supabaseTableErrorLogged = false;
 
   // Get Reports
   app.get('/api/reports', async (req, res) => {
+    console.log(`[${new Date().toISOString()}] GET /api/reports - Request received`);
     try {
-      // Try Supabase first if configured
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
-        const { data, error } = await supabase
-          .from('reports')
-          .select('*')
-          .order('timestamp', { ascending: false });
-        
-        if (!error && data) {
-          const parsedReports = data.map((r: any) => ({
-            ...r,
-            isIssuePresent: !!r.isIssuePresent,
-            aiAnalysis: {
-              issueType: r.issueType,
-              description: r.description,
-              priority: r.priority,
-              solution: r.solution,
-              isIssuePresent: !!r.isIssuePresent
-            }
-          }));
-          return res.json(parsedReports);
-        }
-        
-        // Silence "Table not found" errors as they are expected before initial setup
-        const isTableNotFound = error?.code === '42P01' || (error?.message && error.message.includes('Could not find the table'));
-        if (!isTableNotFound) {
-          console.warn('Supabase fetch failed:', error?.message || error);
+      // Try Supabase first if configured and not in backoff
+      if (shouldTrySupabase()) {
+        try {
+          const { data, error } = await supabase
+            .from('reports')
+            .select('*')
+            .order('timestamp', { ascending: false });
+          
+          if (!error && data) {
+            const parsedReports = data.map((r: any) => ({
+              ...r,
+              isIssuePresent: !!r.isIssuePresent,
+              aiAnalysis: {
+                issueType: r.issueType,
+                description: r.description,
+                priority: r.priority,
+                solution: r.solution,
+                isIssuePresent: !!r.isIssuePresent
+              }
+            }));
+            return res.json(parsedReports);
+          }
+          
+          handleSupabaseError(error, req.method, req.url);
+        } catch (err: any) {
+          const errMsg = err.message || String(err);
+          if (errMsg.includes('ENOTFOUND')) {
+            console.warn(`Supabase Connection Error: DNS lookup failed. Backing off for 1 min.`);
+            supabaseBackoffUntil = Date.now() + SUPABASE_BACKOFF_DURATION;
+          } else {
+            console.error('Supabase unexpected error:', errMsg);
+          }
         }
       }
 
@@ -459,7 +556,7 @@ let supabaseTableErrorLogged = false;
       'Núi Thành': { lat: 15.4212, lng: 108.6512 },
       'Phú Ninh': { lat: 15.5112, lng: 108.4512 },
       'Tiên Phước': { lat: 15.4812, lng: 108.3112 },
-      'Trà My': { lat: 15.28, lng: 108.23 },
+      'Bắc Trà My': { lat: 15.28, lng: 108.23 },
       'Nam Trà My': { lat: 15.05, lng: 108.08 },
       'Phước Sơn': { lat: 15.35, lng: 107.85 },
       'Hiệp Đức': { lat: 15.55, lng: 108.05 },
@@ -495,7 +592,7 @@ let supabaseTableErrorLogged = false;
     const timestamp = new Date().toISOString();
 
     // Try Supabase first
-    if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+    if (supabase) {
       try {
         const { error } = await supabase
           .from('reports')
@@ -590,9 +687,7 @@ let supabaseTableErrorLogged = false;
       'Cẩm Lệ': { lat: 15.9988, lng: 108.1916 },
       'Hòa Vang': { lat: 15.9867, lng: 108.0671 },
       'Tam Kỳ': { lat: 15.5647, lng: 108.4811 },
-      'Hội An': { lat: 15.8801, lng: 108.3380 },
-      'Đông Giang': { lat: 15.92916, lng: 107.63919 }
-      
+      'Hội An': { lat: 15.8801, lng: 108.3380 }
     };
 
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -617,7 +712,7 @@ let supabaseTableErrorLogged = false;
       const reportTimestamp = report.timestamp || timestamp;
 
       // Try Supabase
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         try {
           const { error } = await supabase.from('reports').insert([{
             id: report.id,
@@ -681,7 +776,7 @@ let supabaseTableErrorLogged = false;
     const { status } = req.body;
     
     // Try Supabase first
-    if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+    if (supabase) {
       try {
         const { error } = await supabase
           .from('reports')
@@ -762,7 +857,7 @@ let supabaseTableErrorLogged = false;
       }
       
       // Try Supabase first
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         try {
           const { data, error } = await supabase
             .from('notifications')
@@ -807,7 +902,7 @@ let supabaseTableErrorLogged = false;
       const { id } = req.params;
 
       // Try Supabase
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         try {
           await supabase.from('notifications').update({ isRead: 1 }).eq('id', id);
         } catch (err) {}
@@ -837,7 +932,7 @@ let supabaseTableErrorLogged = false;
       }
       
       // Try Supabase
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         try {
           await supabase.from('notifications').update({ isRead: 1 }).eq('userId', decoded.id);
         } catch (err) {}
@@ -854,7 +949,7 @@ let supabaseTableErrorLogged = false;
   app.get('/api/stats', async (req, res) => {
     try {
       // Try Supabase first
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { data: reports, error } = await supabase
           .from('reports')
           .select('priority, status, area, id, issueType, timestamp');
@@ -932,7 +1027,7 @@ let supabaseTableErrorLogged = false;
       
       const { productName, quantity, address, phone } = req.body;
 
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { data, error } = await supabase
           .from('orders')
           .insert([{
@@ -975,7 +1070,7 @@ let supabaseTableErrorLogged = false;
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      if (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { data, error } = await supabase
           .from('orders')
           .select('*')
@@ -993,33 +1088,44 @@ let supabaseTableErrorLogged = false;
     }
   });
 
+  // 404 handler for API routes
+  app.all('/api/*all', (req, res) => {
+    console.warn(`[404] API Route not found: ${req.method} ${req.url}`);
+    res.status(404).json({ message: `API route not found: ${req.method} ${req.url}` });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+    try {
+      console.log('[VITE] Starting Vite server...');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+      console.log('[VITE] Vite server started.');
+    } catch (viteError) {
+      console.error('[VITE] Failed to start Vite server:', viteError);
+    }
   } else {
     // Serve static files in production (if needed)
+    console.log('[SERVER] Production mode: serving static files from dist');
     app.use(express.static('dist'));
     
     // SPA fallback for production
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       res.sendFile('index.html', { root: 'dist' });
     });
   }
 
-  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-    console.log(`Attempting to listen on port ${PORT}...`);
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://0.0.0.0:${PORT}`);
-    });
-    
-    server.on('error', (err) => {
-      console.error('Server failed to start:', err);
-    });
-  }
+  console.log(`[SERVER] Attempting to listen on port ${PORT}...`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[SERVER] Server running on http://0.0.0.0:${PORT}`);
+  });
+  
+  server.on('error', (err) => {
+    console.error('[SERVER] Server failed to start:', err);
+  });
 
   return app;
 }

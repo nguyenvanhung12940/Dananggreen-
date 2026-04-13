@@ -7,7 +7,9 @@ import os from 'os';
 const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
 const dbPath = isVercel ? path.join(os.tmpdir(), 'danang_green.db') : 'danang_green.db';
 
+console.log(`[DB] Using database path: ${dbPath}`);
 const db = new Database(dbPath);
+console.log('[DB] Database connection established.');
 
 export const initDb = () => {
   // Users table

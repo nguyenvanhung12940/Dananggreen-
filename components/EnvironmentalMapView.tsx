@@ -270,6 +270,11 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
       });
       mapRef.current = map;
 
+      // Đảm bảo bản đồ hiển thị đúng kích thước sau khi render
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+
       // SỬ DỤNG CartoDB Voyager để có tên địa danh trung lập và chính xác hơn cho Hoàng Sa/Trường Sa
       const baseLayers = {
         "Bản đồ mặc định": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -320,7 +325,18 @@ const EnvironmentalMapView: React.FC<EnvironmentalMapViewProps> = ({ reports, po
       // L.control.layers(baseLayers, overlayMaps).addTo(map); // Custom UI used instead
     }
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    });
+
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
+      resizeObserver.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
