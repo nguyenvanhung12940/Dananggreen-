@@ -963,7 +963,7 @@ const App: React.FC = () => {
                   initialViewState={mapViewState}
                 />;
       case 'sos':
-        return <SOSView onClose={() => setView('home')} />;
+        return <SOSView onClose={() => setView('home')} userLocation={userLocation} />;
       case 'login':
         return <LoginView onLogin={handleLogin} />;
       case 'dashboard':

@@ -10,44 +10,78 @@ import { findNearestAuthority } from '../services/locationUtils';
 
 interface SOSViewProps {
   onClose: () => void;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
-const SOSView: React.FC<SOSViewProps> = ({ onClose }) => {
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [nearestAuthority, setNearestAuthority] = useState<Authority | null>(null);
+const SOSView: React.FC<SOSViewProps> = ({ onClose, userLocation: appLocation }) => {
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
+    appLocation ? { lat: appLocation.latitude, lng: appLocation.longitude } : null
+  );
+  const [nearestAuthority, setNearestAuthority] = useState<Authority | null>(
+    appLocation ? findNearestAuthority(appLocation.latitude, appLocation.longitude) : null
+  );
   const [error, setError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const getPosition = () => {
+    if (!navigator.geolocation) {
+      setError("Trình duyệt không hỗ trợ định vị.");
+      return;
+    }
+
+    setIsLocating(true);
+    setError(null);
+
+    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setLocation({ lat, lng });
+        setNearestAuthority(findNearestAuthority(lat, lng));
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn("SOS GPS Error:", err);
+        // Retry with low accuracy
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            setLocation({ lat, lng });
+            setNearestAuthority(findNearestAuthority(lat, lng));
+            setIsLocating(false);
+          },
+          (retryErr) => {
+             setError("Không thể lấy vị trí. Vui lòng bật GPS và cho phép truy cập.");
+             setIsLocating(false);
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+        );
+      },
+      options
+    );
+  };
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setLocation({ lat, lng });
-          setNearestAuthority(findNearestAuthority(lat, lng));
-        },
-        (err) => {
-          console.warn("SOS GPS Error:", err);
-          // Retry with low accuracy if high accuracy fails
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const lat = position.coords.latitude;
-              const lng = position.coords.longitude;
-              setLocation({ lat, lng });
-              setNearestAuthority(findNearestAuthority(lat, lng));
-            },
-            (retryErr) => {
-               setError("Không thể lấy vị trí. Vui lòng bật GPS.");
-            },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-          );
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-      );
-    } else {
-      setError("Trình duyệt không hỗ trợ định vị.");
+    if (!location && !appLocation) {
+      getPosition();
+    } else if (appLocation && !location) {
+        setLocation({ lat: appLocation.latitude, lng: appLocation.longitude });
+        setNearestAuthority(findNearestAuthority(appLocation.latitude, appLocation.longitude));
     }
-  }, []);
+  }, [appLocation]);
+
+  // React to location changes if appLocation updates
+  useEffect(() => {
+    if (appLocation) {
+      const lat = appLocation.latitude;
+      const lng = appLocation.longitude;
+      setLocation({ lat, lng });
+      setNearestAuthority(findNearestAuthority(lat, lng));
+    }
+  }, [appLocation]);
 
   // Hàm tạo link SMS cho offline mode
   const getSMSLink = (type: string) => {
@@ -82,11 +116,21 @@ const SOSView: React.FC<SOSViewProps> = ({ onClose }) => {
             <div className="bg-black/20 px-6 py-4 rounded-2xl flex items-center space-x-3">
                 <LocationIcon className="w-8 h-8 text-blue-300" />
                 <div className="text-left">
-                    <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Tọa độ của bạn</p>
+                    <div className="flex items-center space-x-2">
+                        <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Tọa độ của bạn</p>
+                        {isLocating && <span className="w-2 h-2 bg-blue-400 rounded-full animate-ping"></span>}
+                    </div>
                     {location ? (
-                        <p className="font-mono text-lg font-bold">{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</p>
+                        <div className="flex items-center space-x-2">
+                            <p className="font-mono text-lg font-bold">{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</p>
+                            <button onClick={getPosition} disabled={isLocating} className="p-1 hover:bg-white/10 rounded transition-colors" title="Cập nhật vị trí">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 ${isLocating ? 'animate-spin' : ''}`}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                            </button>
+                        </div>
                     ) : (
-                        <p className="font-bold text-red-200 text-sm">{error || "Đang định vị..."}</p>
+                        <p className="font-bold text-red-200 text-sm whitespace-pre-wrap">{error || (isLocating ? "Đang xác định..." : "Vui lòng cho phép định vị")}</p>
                     )}
                 </div>
             </div>
@@ -100,11 +144,25 @@ const SOSView: React.FC<SOSViewProps> = ({ onClose }) => {
                 <div className="text-left">
                     <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Ban quản lý gần nhất</p>
                     {nearestAuthority ? (
-                        <>
-                            <p className="font-bold text-lg leading-tight">{nearestAuthority.name}</p>
-                            <p className="text-sm font-mono text-brand-200">{nearestAuthority.phone}</p>
-                        </>
-                    ) : (
+                        <div className="flex items-center space-x-2">
+                             <div className="flex-grow">
+                                <p className="font-bold text-lg leading-tight">{nearestAuthority.name}</p>
+                                <p className="text-sm font-mono text-brand-200">{nearestAuthority.phone}</p>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(nearestAuthority.phone);
+                                    alert("Đã sao chép số điện thoại!");
+                                }}
+                                className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                                title="Sao chép số điện thoại"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                                </svg>
+                            </button>
+                        </div>
+                    ) : ( 
                         <p className="italic text-sm opacity-60">Đang tìm kiếm...</p>
                     )}
                 </div>
@@ -112,7 +170,10 @@ const SOSView: React.FC<SOSViewProps> = ({ onClose }) => {
         </div>
 
         <p className="text-lg font-medium max-w-md">
-            Sử dụng tính năng này khi bạn gặp nguy hiểm hoặc mất kết nối Internet. Hệ thống sẽ chuyển sang gửi tin nhắn SMS/Gọi điện thoại.
+            Sử dụng tính năng này khi bạn gặp nguy hiểm hoặc mất kết nối Internet. 
+            <span className="block text-sm opacity-80 mt-1 font-normal italic">
+                * Tính năng gửi SMS hoạt động tốt nhất trên thiết bị di động.
+            </span>
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
