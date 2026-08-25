@@ -1,6 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import * as L from 'leaflet';
+import { Analytics } from '@vercel/analytics/react';
 import { analyzeEnvironmentalImage, askAIAboutEnvironment, generateAIImage } from './services/geminiService';
 import { saveOfflineReport, getOfflineReports, deleteOfflineReport, compressImage } from './services/offlineService';
 import { findNearestAuthority } from './services/locationUtils';
@@ -1153,6 +1154,9 @@ const App: React.FC = () => {
         onSubmit={handleChatSubmit}
         onClearChat={handleClearChat}
       />
+      
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 };
